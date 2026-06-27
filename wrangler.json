@@ -15,7 +15,7 @@
 		{
 			"binding": "DB",
 			"database_name": "melody-db",
-			"database_id": "REPLACE_WITH_ID_FROM_wrangler_d1_create",
+			"database_id": "f0aa54e8-e5ea-4791-975a-ff235ec9f872",
 			"migrations_dir": "migrations"
 		}
 	],
@@ -26,6 +26,6 @@
 		}
 	],
 	"vars": {
-		"TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+		"TURNSTILE_SITE_KEY": "0x4AAAAAADsCJQGf71UUvbXG"
 	}
 }

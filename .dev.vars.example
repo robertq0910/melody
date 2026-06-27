@@ -5,3 +5,11 @@
 # Cloudflare Turnstile secret key (pairs with the public TURNSTILE_SITE_KEY in wrangler.json).
 # Test keys (always pass) are pre-filled so forms work locally out of the box.
 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# Admin Basic Auth password gate (used in production when /admin is NOT behind
+# Cloudflare Access, e.g. demo deploys on *.workers.dev). When set, /admin/*
+# prompts for a username/password. Username defaults to "admin" (override with
+# ADMIN_USER). Leave unset locally — astro dev keeps /admin open regardless.
+# For production set it with: wrangler secret put ADMIN_PASSWORD
+# ADMIN_PASSWORD=change-me
+# ADMIN_USER=admin
