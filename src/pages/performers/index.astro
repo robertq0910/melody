@@ -1,0 +1,55 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getDb, listPerformers } from "../../lib/db";
+import { mediaUrl } from "../../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const performers = await listPerformers(db);
+---
+
+<Base wide title="Performers">
+	<h1>Our Performers</h1>
+	<p class="lede">The teen musicians who make every performance possible.</p>
+
+	<div class="grid">
+		{
+			performers.map((person) => (
+				<div class="card">
+					<img src={mediaUrl(person.photo_key)} alt={person.name} />
+					<div class="card-body">
+						<h3>{person.name}</h3>
+						{person.instrument && <p class="muted">{person.instrument}</p>}
+						{person.bio && <p>{person.bio}</p>}
+					</div>
+				</div>
+			))
+		}
+	</div>
+	{performers.length === 0 && <p class="muted">No performers published yet.</p>}
+
+	<section class="band">
+		<h2>Want to perform with us?</h2>
+		<p>We welcome teen musicians of all instruments and experience levels.</p>
+		<a class="btn btn-primary" href="/get-involved">Get Involved</a>
+	</section>
+</Base>
+
+<style>
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+		margin-bottom: 2em;
+	}
+	.card-body h3 {
+		margin: 0 0 0.2em;
+	}
+	.band {
+		text-align: center;
+		background: rgb(var(--gray-light));
+		border-radius: 16px;
+		padding: 2.5em 1.5em;
+		margin-top: 3em;
+	}
+</style>

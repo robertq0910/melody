@@ -1,0 +1,7 @@
+# Local development secrets for `wrangler dev` / `astro dev`.
+# Copy to `.dev.vars` (gitignored) and fill in real values.
+# For production, set with: wrangler secret put TURNSTILE_SECRET_KEY
+
+# Cloudflare Turnstile secret key (pairs with the public TURNSTILE_SITE_KEY in wrangler.json).
+# Test keys (always pass) are pre-filled so forms work locally out of the box.
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA

@@ -1,0 +1,138 @@
+---
+import Admin from "../../../layouts/Admin.astro";
+import { uploadImage, deleteImage, slugify } from "../../../lib/admin";
+import { getDb, getPerformerById } from "../../../lib/db";
+import { mediaUrl } from "../../../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const bucket = Astro.locals.runtime?.env?.MEDIA;
+const id = parseInt(Astro.params.id ?? "", 10);
+
+let error: string | null = null;
+
+if (Number.isFinite(id) && Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	try {
+		const existing = await getPerformerById(db, id);
+		if (!existing) throw new Error("Performer not found.");
+		const name = String(form.get("name") ?? "").trim();
+		if (!name) throw new Error("Name is required.");
+
+		let photoKey = existing.photo_key;
+		const newPhoto = await uploadImage(bucket, form.get("photo"), "performers");
+		if (newPhoto) {
+			await deleteImage(bucket, existing.photo_key);
+			photoKey = newPhoto;
+		} else if (form.get("remove_photo")) {
+			await deleteImage(bucket, existing.photo_key);
+			photoKey = null;
+		}
+
+		await db
+			.prepare(
+				`UPDATE performers
+				 SET name = ?, slug = ?, instrument = ?, bio = ?, photo_key = ?, sort_order = ?, published = ?
+				 WHERE id = ?`,
+			)
+			.bind(
+				name,
+				slugify(name) || existing.slug,
+				String(form.get("instrument") ?? "").trim() || null,
+				String(form.get("bio") ?? "").trim() || null,
+				photoKey,
+				parseInt(String(form.get("sort_order") ?? "0"), 10) || 0,
+				form.get("published") ? 1 : 0,
+				id,
+			)
+			.run();
+		return Astro.redirect("/admin/performers");
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Something went wrong.";
+	}
+}
+
+const performer = Number.isFinite(id) ? await getPerformerById(db, id) : null;
+if (!performer) {
+	return new Response("Performer not found", { status: 404 });
+}
+---
+
+<Admin title={`Edit ${performer.name}`}>
+	<p><a href="/admin/performers">← Back to performers</a></p>
+	<h1>Edit performer</h1>
+	{error && <div class="notice notice-error">{error}</div>}
+
+	<form method="POST" enctype="multipart/form-data" class="edit-form">
+		<div class="field">
+			<label for="name">Name *</label>
+			<input id="name" name="name" required value={performer.name} />
+		</div>
+		<div class="field">
+			<label for="instrument">Instrument</label>
+			<input id="instrument" name="instrument" value={performer.instrument ?? ""} />
+		</div>
+		<div class="field">
+			<label for="bio">Bio</label>
+			<textarea id="bio" name="bio" rows="4">{performer.bio ?? ""}</textarea>
+		</div>
+		<div class="field">
+			<label>Current photo</label>
+			{
+				performer.photo_key ? (
+					<div class="current">
+						<img src={mediaUrl(performer.photo_key)} alt="" />
+						<label class="inline">
+							<input type="checkbox" name="remove_photo" /> Remove photo
+						</label>
+					</div>
+				) : (
+					<p class="muted">No photo.</p>
+				)
+			}
+		</div>
+		<div class="field">
+			<label for="photo">Replace photo</label>
+			<input id="photo" name="photo" type="file" accept="image/*" />
+			<span class="hint">Leave empty to keep the current photo.</span>
+		</div>
+		<div class="row">
+			<div class="field">
+				<label for="sort_order">Sort order</label>
+				<input id="sort_order" name="sort_order" type="number" value={performer.sort_order} />
+			</div>
+			<div class="field checkbox">
+				<label class="inline">
+					<input type="checkbox" name="published" checked={performer.published === 1} /> Visible on
+					site
+				</label>
+			</div>
+		</div>
+		<button class="btn btn-primary" type="submit">Save changes</button>
+	</form>
+</Admin>
+
+<style>
+	.edit-form {
+		max-width: 600px;
+	}
+	.current img {
+		width: 120px;
+		height: 120px;
+		object-fit: cover;
+		border-radius: 8px;
+		display: block;
+		margin-bottom: 0.4em;
+	}
+	.inline {
+		display: inline-flex !important;
+		align-items: center;
+		gap: 0.4em;
+		font-weight: 400 !important;
+	}
+	.checkbox {
+		display: flex;
+		align-items: flex-end;
+	}
+</style>

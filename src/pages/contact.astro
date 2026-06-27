@@ -1,0 +1,84 @@
+---
+import Base from "../layouts/Base.astro";
+import Turnstile from "../components/Turnstile.astro";
+import { getDb } from "../lib/db";
+import { verifyTurnstile } from "../lib/turnstile";
+
+export const prerender = false;
+
+let error: string | null = null;
+const values = { name: "", email: "", subject: "", message: "" };
+
+if (Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	for (const key of Object.keys(values) as (keyof typeof values)[]) {
+		values[key] = String(form.get(key) ?? "").trim();
+	}
+
+	const token = form.get("cf-turnstile-response") as string | null;
+	const secret = Astro.locals.runtime?.env?.TURNSTILE_SECRET_KEY;
+	const ip = Astro.request.headers.get("CF-Connecting-IP");
+
+	if (!values.name || !values.email || !values.message) {
+		error = "Please fill in your name, email, and message.";
+	} else if (!(await verifyTurnstile(token, secret, ip))) {
+		error = "Anti-spam check failed. Please try again.";
+	} else {
+		const db = getDb(Astro.locals);
+		await db
+			.prepare(
+				`INSERT INTO contact_messages (name, email, subject, message)
+				 VALUES (?, ?, ?, ?)`,
+			)
+			.bind(values.name, values.email, values.subject || null, values.message)
+			.run();
+		return Astro.redirect("/thank-you?type=contact");
+	}
+}
+---
+
+<Base title="Contact Us">
+	<h1>Contact Us</h1>
+	<p class="lede">
+		Have a question or just want to say hello? Send us a message and we'll get back to you. For
+		performance bookings, use <a href="/request-performance">Request a Performance</a>; to join,
+		see <a href="/get-involved">Get Involved</a>.
+	</p>
+
+	{error && <div class="notice notice-error">{error}</div>}
+
+	<form method="POST">
+		<div class="row">
+			<div class="field">
+				<label for="name">Name *</label>
+				<input id="name" name="name" required value={values.name} />
+			</div>
+			<div class="field">
+				<label for="email">Email *</label>
+				<input id="email" name="email" type="email" required value={values.email} />
+			</div>
+		</div>
+		<div class="field">
+			<label for="subject">Subject</label>
+			<input id="subject" name="subject" value={values.subject} />
+		</div>
+		<div class="field">
+			<label for="message">Message *</label>
+			<textarea id="message" name="message" rows="5" required>{values.message}</textarea>
+		</div>
+
+		<div class="field">
+			<Turnstile />
+		</div>
+
+		<button class="btn btn-primary" type="submit">Send message</button>
+	</form>
+</Base>
+
+<style>
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+		margin-bottom: 1.5em;
+	}
+</style>

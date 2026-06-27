@@ -1,0 +1,242 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import {
+	getDb,
+	listHostingRequests,
+	listVolunteerApplications,
+	listContactMessages,
+} from "../../lib/db";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+
+const TABLES: Record<string, string> = {
+	hosting: "hosting_requests",
+	volunteer: "volunteer_applications",
+	contact: "contact_messages",
+};
+
+if (Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	const kind = String(form.get("kind"));
+	const id = parseInt(String(form.get("id")), 10);
+	const status = String(form.get("status"));
+	const table = TABLES[kind];
+	if (table && Number.isFinite(id) && status) {
+		await db.prepare(`UPDATE ${table} SET status = ? WHERE id = ?`).bind(status, id).run();
+	}
+	return Astro.redirect("/admin/requests");
+}
+
+const hosting = await listHostingRequests(db);
+const volunteers = await listVolunteerApplications(db);
+const contacts = await listContactMessages(db);
+
+const hostingStatuses = ["new", "contacted", "scheduled", "done", "declined"];
+const volunteerStatuses = ["new", "reviewing", "accepted", "declined"];
+const contactStatuses = ["new", "read", "replied", "archived"];
+
+function fmt(d: string) {
+	return new Date(d + "Z").toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+---
+
+<Admin title="Requests">
+	<div class="head-row">
+		<h1>Hosting Requests</h1>
+		<a class="export" href="/admin/export/hosting.csv">⬇ Export CSV</a>
+	</div>
+	{hosting.length === 0 && <p class="muted">No hosting requests yet.</p>}
+	<div class="cards">
+		{
+			hosting.map((r) => (
+				<div class="req">
+					<div class="req-head">
+						<strong>{r.org_name}</strong>
+						<span class={`badge badge-${r.status}`}>{r.status}</span>
+					</div>
+					<p class="muted small">{fmt(r.created_at)}</p>
+					<p>
+						{r.contact_name} ·{" "}
+						<a href={`mailto:${r.email}`}>{r.email}</a>
+						{r.phone && ` · ${r.phone}`}
+					</p>
+					<p class="muted">
+						{[r.location, r.preferred_date].filter(Boolean).join(" · ")}
+					</p>
+					{r.message && <p class="msg">{r.message}</p>}
+					<form method="POST" class="status-form">
+						<input type="hidden" name="kind" value="hosting" />
+						<input type="hidden" name="id" value={r.id} />
+						<select name="status">
+							{hostingStatuses.map((s) => (
+								<option value={s} selected={s === r.status}>
+									{s}
+								</option>
+							))}
+						</select>
+						<button class="btn btn-secondary btn-sm" type="submit">Update</button>
+					</form>
+				</div>
+			))
+		}
+	</div>
+
+	<div class="head-row">
+		<h1>Volunteer Applications</h1>
+		<a class="export" href="/admin/export/volunteer.csv">⬇ Export CSV</a>
+	</div>
+	{volunteers.length === 0 && <p class="muted">No volunteer applications yet.</p>}
+	<div class="cards">
+		{
+			volunteers.map((v) => (
+				<div class="req">
+					<div class="req-head">
+						<strong>{v.name}</strong>
+						<span class={`badge badge-${v.status}`}>{v.status}</span>
+					</div>
+					<p class="muted small">{fmt(v.created_at)}</p>
+					<p>
+						<a href={`mailto:${v.email}`}>{v.email}</a>
+						{v.phone && ` · ${v.phone}`}
+						{v.age && ` · age ${v.age}`}
+					</p>
+					{v.instrument && <p class="muted">Instrument: {v.instrument}</p>}
+					{v.experience && <p class="msg">{v.experience}</p>}
+					{v.message && <p class="msg">{v.message}</p>}
+					<form method="POST" class="status-form">
+						<input type="hidden" name="kind" value="volunteer" />
+						<input type="hidden" name="id" value={v.id} />
+						<select name="status">
+							{volunteerStatuses.map((s) => (
+								<option value={s} selected={s === v.status}>
+									{s}
+								</option>
+							))}
+						</select>
+						<button class="btn btn-secondary btn-sm" type="submit">Update</button>
+					</form>
+				</div>
+			))
+		}
+	</div>
+
+	<div class="head-row">
+		<h1>Contact Messages</h1>
+		<a class="export" href="/admin/export/contact.csv">⬇ Export CSV</a>
+	</div>
+	{contacts.length === 0 && <p class="muted">No contact messages yet.</p>}
+	<div class="cards">
+		{
+			contacts.map((c) => (
+				<div class="req">
+					<div class="req-head">
+						<strong>{c.subject || "(no subject)"}</strong>
+						<span class={`badge badge-${c.status}`}>{c.status}</span>
+					</div>
+					<p class="muted small">{fmt(c.created_at)}</p>
+					<p>
+						{c.name} · <a href={`mailto:${c.email}`}>{c.email}</a>
+					</p>
+					<p class="msg">{c.message}</p>
+					<form method="POST" class="status-form">
+						<input type="hidden" name="kind" value="contact" />
+						<input type="hidden" name="id" value={c.id} />
+						<select name="status">
+							{contactStatuses.map((s) => (
+								<option value={s} selected={s === c.status}>
+									{s}
+								</option>
+							))}
+						</select>
+						<button class="btn btn-secondary btn-sm" type="submit">Update</button>
+					</form>
+				</div>
+			))
+		}
+	</div>
+</Admin>
+
+<style>
+	.cards {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: 1em;
+		margin-bottom: 2.5em;
+	}
+	.req {
+		background: white;
+		border-radius: 12px;
+		padding: 1.2em;
+		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
+	}
+	.req p {
+		margin: 0.2em 0;
+	}
+	.req-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.small {
+		font-size: 0.8em;
+	}
+	.msg {
+		background: rgb(var(--gray-light));
+		padding: 0.5em 0.7em;
+		border-radius: 6px;
+		margin-top: 0.5em !important;
+	}
+	.badge {
+		font-size: 0.75em;
+		padding: 0.15em 0.6em;
+		border-radius: 999px;
+		background: rgb(var(--gray-light));
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+	.badge-new {
+		background: var(--accent);
+		color: white;
+	}
+	.badge-accepted,
+	.badge-scheduled,
+	.badge-done,
+	.badge-replied {
+		background: #1c6b3a;
+		color: white;
+	}
+	.badge-declined,
+	.badge-archived {
+		background: #9b1c1c;
+		color: white;
+	}
+	.head-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1em;
+		margin-top: 1.5em;
+	}
+	.export {
+		font-size: 0.9em;
+		font-weight: 700;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.status-form {
+		display: flex;
+		gap: 0.5em;
+		margin-top: 0.8em;
+	}
+	.btn-sm {
+		padding: 0.35em 0.9em;
+		font-size: 0.85em;
+	}
+	select {
+		padding: 0.3em;
+		border-radius: 6px;
+		border: 1px solid rgb(var(--gray-light));
+	}
+</style>

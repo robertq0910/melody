@@ -10,5 +10,22 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "melody-db",
+			"database_id": "REPLACE_WITH_ID_FROM_wrangler_d1_create",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "melody-media"
+		}
+	],
+	"vars": {
+		"TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+	}
 }

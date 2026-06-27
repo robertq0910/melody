@@ -1,0 +1,115 @@
+---
+import Base from "../layouts/Base.astro";
+import Turnstile from "../components/Turnstile.astro";
+import { getDb } from "../lib/db";
+import { verifyTurnstile } from "../lib/turnstile";
+
+export const prerender = false;
+
+let error: string | null = null;
+const values = {
+	org_name: "",
+	contact_name: "",
+	email: "",
+	phone: "",
+	location: "",
+	preferred_date: "",
+	message: "",
+};
+
+if (Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	for (const key of Object.keys(values) as (keyof typeof values)[]) {
+		values[key] = String(form.get(key) ?? "").trim();
+	}
+
+	const token = form.get("cf-turnstile-response") as string | null;
+	const secret = Astro.locals.runtime?.env?.TURNSTILE_SECRET_KEY;
+	const ip = Astro.request.headers.get("CF-Connecting-IP");
+
+	if (!values.org_name || !values.contact_name || !values.email) {
+		error = "Please fill in the organization, contact name, and email.";
+	} else if (!(await verifyTurnstile(token, secret, ip))) {
+		error = "Anti-spam check failed. Please try again.";
+	} else {
+		const db = getDb(Astro.locals);
+		await db
+			.prepare(
+				`INSERT INTO hosting_requests
+				 (org_name, contact_name, email, phone, location, preferred_date, message)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				values.org_name,
+				values.contact_name,
+				values.email,
+				values.phone || null,
+				values.location || null,
+				values.preferred_date || null,
+				values.message || null,
+			)
+			.run();
+		return Astro.redirect("/thank-you?type=hosting");
+	}
+}
+---
+
+<Base title="Request a Performance">
+	<h1>Request a Performance</h1>
+	<p class="lede">
+		Tell us about your community or event and we'll be in touch to find a date. Performances are
+		always free.
+	</p>
+
+	{error && <div class="notice notice-error">{error}</div>}
+
+	<form method="POST">
+		<div class="field">
+			<label for="org_name">Organization / community name *</label>
+			<input id="org_name" name="org_name" required value={values.org_name} />
+		</div>
+		<div class="row">
+			<div class="field">
+				<label for="contact_name">Your name *</label>
+				<input id="contact_name" name="contact_name" required value={values.contact_name} />
+			</div>
+			<div class="field">
+				<label for="email">Email *</label>
+				<input id="email" name="email" type="email" required value={values.email} />
+			</div>
+		</div>
+		<div class="row">
+			<div class="field">
+				<label for="phone">Phone</label>
+				<input id="phone" name="phone" value={values.phone} />
+			</div>
+			<div class="field">
+				<label for="location">Location (city)</label>
+				<input id="location" name="location" value={values.location} />
+			</div>
+		</div>
+		<div class="field">
+			<label for="preferred_date">Preferred date or timeframe</label>
+			<input id="preferred_date" name="preferred_date" value={values.preferred_date} />
+			<span class="hint">e.g. "an afternoon in May" or a specific date.</span>
+		</div>
+		<div class="field">
+			<label for="message">Anything else we should know?</label>
+			<textarea id="message" name="message" rows="4">{values.message}</textarea>
+		</div>
+
+		<div class="field">
+			<Turnstile />
+		</div>
+
+		<button class="btn btn-primary" type="submit">Send request</button>
+	</form>
+</Base>
+
+<style>
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+		margin-bottom: 1.5em;
+	}
+</style>

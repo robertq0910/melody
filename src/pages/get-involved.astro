@@ -1,0 +1,116 @@
+---
+import Base from "../layouts/Base.astro";
+import Turnstile from "../components/Turnstile.astro";
+import { getDb } from "../lib/db";
+import { verifyTurnstile } from "../lib/turnstile";
+
+export const prerender = false;
+
+let error: string | null = null;
+const values = {
+	name: "",
+	email: "",
+	phone: "",
+	age: "",
+	instrument: "",
+	experience: "",
+	message: "",
+};
+
+if (Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	for (const key of Object.keys(values) as (keyof typeof values)[]) {
+		values[key] = String(form.get(key) ?? "").trim();
+	}
+
+	const token = form.get("cf-turnstile-response") as string | null;
+	const secret = Astro.locals.runtime?.env?.TURNSTILE_SECRET_KEY;
+	const ip = Astro.request.headers.get("CF-Connecting-IP");
+
+	if (!values.name || !values.email) {
+		error = "Please fill in your name and email.";
+	} else if (!(await verifyTurnstile(token, secret, ip))) {
+		error = "Anti-spam check failed. Please try again.";
+	} else {
+		const ageNum = values.age ? parseInt(values.age, 10) : null;
+		const db = getDb(Astro.locals);
+		await db
+			.prepare(
+				`INSERT INTO volunteer_applications
+				 (name, email, phone, age, instrument, experience, message)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.bind(
+				values.name,
+				values.email,
+				values.phone || null,
+				Number.isFinite(ageNum) ? ageNum : null,
+				values.instrument || null,
+				values.experience || null,
+				values.message || null,
+			)
+			.run();
+		return Astro.redirect("/thank-you?type=volunteer");
+	}
+}
+---
+
+<Base title="Get Involved">
+	<h1>Get Involved</h1>
+	<p class="lede">
+		We welcome teen musicians of all instruments and experience levels, plus volunteers who want to
+		help organize. Tell us a bit about yourself and we'll reach out.
+	</p>
+
+	{error && <div class="notice notice-error">{error}</div>}
+
+	<form method="POST">
+		<div class="row">
+			<div class="field">
+				<label for="name">Name *</label>
+				<input id="name" name="name" required value={values.name} />
+			</div>
+			<div class="field">
+				<label for="email">Email *</label>
+				<input id="email" name="email" type="email" required value={values.email} />
+			</div>
+		</div>
+		<div class="row">
+			<div class="field">
+				<label for="phone">Phone</label>
+				<input id="phone" name="phone" value={values.phone} />
+			</div>
+			<div class="field">
+				<label for="age">Age</label>
+				<input id="age" name="age" type="number" min="10" max="19" value={values.age} />
+			</div>
+		</div>
+		<div class="field">
+			<label for="instrument">Instrument(s)</label>
+			<input id="instrument" name="instrument" value={values.instrument} />
+		</div>
+		<div class="field">
+			<label for="experience">Musical experience</label>
+			<textarea id="experience" name="experience" rows="3">{values.experience}</textarea>
+			<span class="hint">Years playing, ensembles, anything you'd like to share.</span>
+		</div>
+		<div class="field">
+			<label for="message">Why do you want to join?</label>
+			<textarea id="message" name="message" rows="3">{values.message}</textarea>
+		</div>
+
+		<div class="field">
+			<Turnstile />
+		</div>
+
+		<button class="btn btn-primary" type="submit">Submit application</button>
+	</form>
+</Base>
+
+<style>
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+		margin-bottom: 1.5em;
+	}
+</style>

@@ -1,0 +1,241 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import { uploadImage, slugify } from "../../lib/admin";
+import { getDb } from "../../lib/db";
+import { mediaUrl } from "../../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const bucket = Astro.locals.runtime?.env?.MEDIA;
+
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+	const form = await Astro.request.formData();
+	const action = String(form.get("action"));
+	try {
+		if (action === "create") {
+			const title = String(form.get("title") ?? "").trim();
+			if (!title) throw new Error("Title is required.");
+			const coverKey = await uploadImage(bucket, form.get("cover"), "performances");
+			const res = await db
+				.prepare(
+					`INSERT INTO performances
+					 (title, slug, venue, location, event_date, summary, description, cover_key)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				)
+				.bind(
+					title,
+					slugify(title) || `performance-${Date.now()}`,
+					String(form.get("venue") ?? "").trim() || null,
+					String(form.get("location") ?? "").trim() || null,
+					String(form.get("event_date") ?? "").trim() || null,
+					String(form.get("summary") ?? "").trim() || null,
+					String(form.get("description") ?? "").trim() || null,
+					coverKey,
+				)
+				.run();
+			const performanceId = res.meta.last_row_id;
+			const performerIds = form.getAll("performers").map((v) => parseInt(String(v), 10));
+			for (const pid of performerIds) {
+				if (Number.isFinite(pid)) {
+					await db
+						.prepare(
+							"INSERT OR IGNORE INTO performance_performers (performance_id, performer_id) VALUES (?, ?)",
+						)
+						.bind(performanceId, pid)
+						.run();
+				}
+			}
+		} else if (action === "toggle") {
+			const id = parseInt(String(form.get("id")), 10);
+			await db
+				.prepare("UPDATE performances SET published = 1 - published WHERE id = ?")
+				.bind(id)
+				.run();
+		} else if (action === "delete") {
+			const id = parseInt(String(form.get("id")), 10);
+			await db.prepare("DELETE FROM performances WHERE id = ?").bind(id).run();
+		}
+		return Astro.redirect("/admin/performances");
+	} catch (e) {
+		error = e instanceof Error ? e.message : "Something went wrong.";
+	}
+}
+
+const { results: performances } = await db
+	.prepare("SELECT * FROM performances ORDER BY event_date DESC, created_at DESC")
+	.all();
+const { results: allPerformers } = await db
+	.prepare("SELECT id, name FROM performers ORDER BY sort_order, name")
+	.all();
+---
+
+<Admin title="Performances">
+	<h1>Performances</h1>
+	{error && <div class="notice notice-error">{error}</div>}
+
+	<div class="layout">
+		<section>
+			<table class="list">
+				<tbody>
+					{
+						performances.map((p: any) => (
+							<tr>
+								<td>
+									<img class="thumb" src={mediaUrl(p.cover_key)} alt="" />
+								</td>
+								<td>
+									<strong>{p.title}</strong>
+									<div class="muted small">
+										{[p.venue, p.event_date].filter(Boolean).join(" · ")}
+									</div>
+								</td>
+								<td>
+									<span class={p.published ? "on" : "off"}>
+										{p.published ? "visible" : "hidden"}
+									</span>
+								</td>
+								<td class="actions">
+									<a class="link-btn" href={`/admin/performances/${p.id}`}>Edit</a>
+									<a class="link-btn" href={`/performances/${p.slug}`} target="_blank">
+										View
+									</a>
+									<form method="POST">
+										<input type="hidden" name="action" value="toggle" />
+										<input type="hidden" name="id" value={p.id} />
+										<button class="link-btn" type="submit">
+											{p.published ? "Hide" : "Show"}
+										</button>
+									</form>
+									<form method="POST" onsubmit="return confirm('Delete this performance?')">
+										<input type="hidden" name="action" value="delete" />
+										<input type="hidden" name="id" value={p.id} />
+										<button class="link-btn danger" type="submit">Delete</button>
+									</form>
+								</td>
+							</tr>
+						))
+					}
+				</tbody>
+			</table>
+			{performances.length === 0 && <p class="muted">No performances yet.</p>}
+		</section>
+
+		<aside class="form-card">
+			<h2>Add performance</h2>
+			<form method="POST" enctype="multipart/form-data">
+				<input type="hidden" name="action" value="create" />
+				<div class="field">
+					<label for="title">Title *</label>
+					<input id="title" name="title" required />
+				</div>
+				<div class="field">
+					<label for="venue">Venue</label>
+					<input id="venue" name="venue" />
+				</div>
+				<div class="field">
+					<label for="location">Location</label>
+					<input id="location" name="location" />
+				</div>
+				<div class="field">
+					<label for="event_date">Date</label>
+					<input id="event_date" name="event_date" type="date" />
+				</div>
+				<div class="field">
+					<label for="summary">Summary</label>
+					<input id="summary" name="summary" />
+				</div>
+				<div class="field">
+					<label for="description">Description</label>
+					<textarea id="description" name="description" rows="4"></textarea>
+				</div>
+				<div class="field">
+					<label for="cover">Cover photo</label>
+					<input id="cover" name="cover" type="file" accept="image/*" />
+				</div>
+				<div class="field">
+					<label for="performers">Performers</label>
+					<select id="performers" name="performers" multiple size="5">
+						{allPerformers.map((p: any) => <option value={p.id}>{p.name}</option>)}
+					</select>
+					<span class="hint">Ctrl/Cmd-click to select several.</span>
+				</div>
+				<button class="btn btn-primary" type="submit">Add performance</button>
+			</form>
+		</aside>
+	</div>
+</Admin>
+
+<style>
+	.layout {
+		display: grid;
+		grid-template-columns: 1fr 320px;
+		gap: 2em;
+		align-items: start;
+	}
+	.list {
+		background: white;
+		border-radius: 12px;
+		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
+		border-collapse: collapse;
+		overflow: hidden;
+	}
+	.list td {
+		padding: 0.6em 0.8em;
+		border-bottom: 1px solid rgb(var(--gray-light));
+		vertical-align: middle;
+	}
+	.thumb {
+		width: 64px;
+		height: 44px;
+		object-fit: cover;
+		border-radius: 6px;
+	}
+	.small {
+		font-size: 0.8em;
+	}
+	.on {
+		color: #1c6b3a;
+		font-weight: 700;
+	}
+	.off {
+		color: rgb(var(--gray));
+	}
+	.actions {
+		display: flex;
+		gap: 0.8em;
+		align-items: center;
+	}
+	.link-btn {
+		background: none;
+		border: none;
+		color: var(--accent);
+		cursor: pointer;
+		padding: 0;
+		font-size: 0.9em;
+		text-decoration: none;
+	}
+	.link-btn.danger {
+		color: #9b1c1c;
+	}
+	.form-card {
+		background: white;
+		border-radius: 12px;
+		padding: 1.2em;
+		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
+	}
+	.form-card h2 {
+		font-size: 1.3em;
+		margin-top: 0;
+	}
+	select[multiple] {
+		width: 100%;
+	}
+	@media (max-width: 800px) {
+		.layout {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

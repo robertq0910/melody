@@ -1,0 +1,70 @@
+---
+import BaseHead from "../components/BaseHead.astro";
+import { adminEmail } from "../lib/admin";
+
+interface Props {
+	title: string;
+}
+const { title } = Astro.props;
+const email = adminEmail(Astro.request);
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Admin · ${title}`} description="Admin" />
+		<meta name="robots" content="noindex" />
+	</head>
+	<body>
+		<header class="admin-header">
+			<nav>
+				<a class="brand" href="/admin">Admin</a>
+				<div class="links">
+					<a href="/admin">Dashboard</a>
+					<a href="/admin/requests">Requests</a>
+					<a href="/admin/performers">Performers</a>
+					<a href="/admin/performances">Performances</a>
+					<a href="/" class="muted">View site →</a>
+				</div>
+				<span class="who muted">{email}</span>
+			</nav>
+		</header>
+		<main>
+			<slot />
+		</main>
+		<style>
+			.admin-header {
+				background: rgb(var(--black));
+				padding: 0.5em 1em;
+			}
+			.admin-header nav {
+				display: flex;
+				align-items: center;
+				gap: 1.5em;
+				flex-wrap: wrap;
+				max-width: 1100px;
+				margin: 0 auto;
+			}
+			.admin-header a {
+				color: white;
+				text-decoration: none;
+			}
+			.admin-header .brand {
+				font-weight: 700;
+			}
+			.admin-header .links {
+				display: flex;
+				gap: 1.2em;
+				flex-wrap: wrap;
+			}
+			.admin-header .who {
+				margin-left: auto;
+				color: rgb(var(--gray-light));
+				font-size: 0.85em;
+			}
+			main {
+				width: 1000px;
+			}
+		</style>
+	</body>
+</html>

@@ -1,62 +1,110 @@
 ---
-import Layout from '../layouts/BlogPost.astro';
+import Base from "../layouts/Base.astro";
+import { getDb, listTeam } from "../lib/db";
+import { mediaUrl } from "../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const team = await listTeam(db);
 ---
 
-<Layout
-	title="About Me"
-	description="Lorem ipsum dolor sit amet"
-	pubDate={new Date('August 08 2021')}
-	heroImage="/blog-placeholder-about.jpg"
->
-	<p>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-		labore et dolore magna aliqua. Vitae ultricies leo integer malesuada nunc vel risus commodo
-		viverra. Adipiscing enim eu turpis egestas pretium. Euismod elementum nisi quis eleifend quam
-		adipiscing. In hac habitasse platea dictumst vestibulum. Sagittis purus sit amet volutpat. Netus
-		et malesuada fames ac turpis egestas. Eget magna fermentum iaculis eu non diam phasellus
-		vestibulum lorem. Varius sit amet mattis vulputate enim. Habitasse platea dictumst quisque
-		sagittis. Integer quis auctor elit sed vulputate mi. Dictumst quisque sagittis purus sit amet.
-	</p>
+<Base wide title="About Us">
+	<h1>About Us</h1>
+	<div class="prose-text">
+		<p>
+			Melody for Medicine is a student-run group of teen musicians who bring live performances to
+			senior living communities, care homes, and local events. What started as a few friends
+			playing at a single retirement home has grown into a roster of performers playing across the
+			area.
+		</p>
+		<p>
+			Our mission is simple: share the joy of live music with audiences who don't often get to
+			experience it, while giving young musicians a meaningful reason to keep playing. Every
+			performance is free for the communities we visit.
+		</p>
+	</div>
 
-	<p>
-		Morbi tristique senectus et netus. Id semper risus in hendrerit gravida rutrum quisque non
-		tellus. Habitasse platea dictumst quisque sagittis purus sit amet. Tellus molestie nunc non
-		blandit massa. Cursus vitae congue mauris rhoncus. Accumsan tortor posuere ac ut. Fringilla urna
-		porttitor rhoncus dolor. Elit ullamcorper dignissim cras tincidunt lobortis. In cursus turpis
-		massa tincidunt dui ut ornare lectus. Integer feugiat scelerisque varius morbi enim nunc.
-		Bibendum neque egestas congue quisque egestas diam. Cras ornare arcu dui vivamus arcu felis
-		bibendum. Dignissim suspendisse in est ante in nibh mauris. Sed tempus urna et pharetra pharetra
-		massa massa ultricies mi.
-	</p>
+	<h2>Our Team</h2>
+	<div class="grid">
+		{
+			team.map((member) => (
+				<div class="card">
+					{member.photo_key && <img src={mediaUrl(member.photo_key)} alt={member.name} />}
+					<div class="card-body">
+						<h3>{member.name}</h3>
+						{member.role && <p class="muted role">{member.role}</p>}
+						{member.bio && <p>{member.bio}</p>}
+					</div>
+				</div>
+			))
+		}
+	</div>
 
-	<p>
-		Mollis nunc sed id semper risus in. Convallis a cras semper auctor neque. Diam sit amet nisl
-		suscipit. Lacus viverra vitae congue eu consequat ac felis donec. Egestas integer eget aliquet
-		nibh praesent tristique magna sit amet. Eget magna fermentum iaculis eu non diam. In vitae
-		turpis massa sed elementum. Tristique et egestas quis ipsum suspendisse ultrices. Eget lorem
-		dolor sed viverra ipsum. Vel turpis nunc eget lorem dolor sed viverra. Posuere ac ut consequat
-		semper viverra nam. Laoreet suspendisse interdum consectetur libero id faucibus. Diam phasellus
-		vestibulum lorem sed risus ultricies tristique. Rhoncus dolor purus non enim praesent elementum
-		facilisis. Ultrices tincidunt arcu non sodales neque. Tempus egestas sed sed risus pretium quam
-		vulputate. Viverra suspendisse potenti nullam ac tortor vitae purus faucibus ornare. Fringilla
-		urna porttitor rhoncus dolor purus non. Amet dictum sit amet justo donec enim.
-	</p>
+	<section class="band">
+		<h2>Get in touch</h2>
+		<p>
+			Interested in hosting us, volunteering, or partnering? Use the links below — we read every
+			message.
+		</p>
+		<div class="cta-row">
+			<a class="btn btn-primary" href="/request-performance">Request a Performance</a>
+			<a class="btn btn-secondary" href="/get-involved">Get Involved</a>
+		</div>
+	</section>
+</Base>
 
-	<p>
-		Mattis ullamcorper velit sed ullamcorper morbi tincidunt. Tortor posuere ac ut consequat semper
-		viverra. Tellus mauris a diam maecenas sed enim ut sem viverra. Venenatis urna cursus eget nunc
-		scelerisque viverra mauris in. Arcu ac tortor dignissim convallis aenean et tortor at. Curabitur
-		gravida arcu ac tortor dignissim convallis aenean et tortor. Egestas tellus rutrum tellus
-		pellentesque eu. Fusce ut placerat orci nulla pellentesque dignissim enim sit amet. Ut enim
-		blandit volutpat maecenas volutpat blandit aliquam etiam. Id donec ultrices tincidunt arcu. Id
-		cursus metus aliquam eleifend mi.
-	</p>
-
-	<p>
-		Tempus quam pellentesque nec nam aliquam sem. Risus at ultrices mi tempus imperdiet. Id porta
-		nibh venenatis cras sed felis eget velit. Ipsum a arcu cursus vitae. Facilisis magna etiam
-		tempor orci eu lobortis elementum. Tincidunt dui ut ornare lectus sit. Quisque non tellus orci
-		ac. Blandit libero volutpat sed cras. Nec tincidunt praesent semper feugiat nibh sed pulvinar
-		proin gravida. Egestas integer eget aliquet nibh praesent tristique magna.
-	</p>
-</Layout>
+<style>
+	.prose-text {
+		font-size: 1.1em;
+		max-width: 65ch;
+		margin-bottom: 2em;
+	}
+	.role {
+		font-weight: 700;
+		color: var(--accent);
+	}
+	.card-body h3 {
+		margin: 0 0 0.1em;
+	}
+	.band {
+		text-align: center;
+		background: var(--brand-grad);
+		border-radius: var(--radius-lg);
+		padding: 3em 1.5em;
+		margin-top: 3.5em;
+		color: white;
+		box-shadow: var(--shadow-lg);
+	}
+	.band :global(h2) {
+		color: white;
+	}
+	.band p {
+		max-width: 50ch;
+		margin: 0.5em auto 1.5em;
+		color: rgba(255, 255, 255, 0.9);
+	}
+	.band .btn-primary {
+		background: white;
+		color: var(--accent-dark);
+		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+	}
+	.band .btn-primary:hover {
+		color: var(--accent-dark);
+	}
+	.band .btn-secondary {
+		background: rgba(255, 255, 255, 0.12);
+		color: white;
+		border-color: rgba(255, 255, 255, 0.5);
+	}
+	.band .btn-secondary:hover {
+		color: white;
+		border-color: white;
+	}
+	.cta-row {
+		display: flex;
+		gap: 1em;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+</style>

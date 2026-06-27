@@ -1,0 +1,83 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import { getDb, countNew } from "../../lib/db";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const counts = await countNew(db);
+
+const totals = await db
+	.prepare(
+		`SELECT
+			(SELECT COUNT(*) FROM performers) AS performers,
+			(SELECT COUNT(*) FROM performances) AS performances,
+			(SELECT COUNT(*) FROM hosting_requests) AS hosting,
+			(SELECT COUNT(*) FROM volunteer_applications) AS volunteer`,
+	)
+	.first<{ performers: number; performances: number; hosting: number; volunteer: number }>();
+---
+
+<Admin title="Dashboard">
+	<h1>Dashboard</h1>
+
+	{
+		(counts.hosting > 0 || counts.volunteer > 0 || counts.contact > 0) && (
+			<div class="notice notice-success">
+				You have {counts.hosting} new hosting request{counts.hosting === 1 ? "" : "s"},{" "}
+				{counts.volunteer} new volunteer application{counts.volunteer === 1 ? "" : "s"}, and{" "}
+				{counts.contact} new message{counts.contact === 1 ? "" : "s"}.{" "}
+				<a href="/admin/requests">Review →</a>
+			</div>
+		)
+	}
+
+	<div class="stats">
+		<a class="stat" href="/admin/requests">
+			<span class="num">{counts.hosting}</span>
+			<span>New hosting requests</span>
+		</a>
+		<a class="stat" href="/admin/requests">
+			<span class="num">{counts.volunteer}</span>
+			<span>New volunteer applications</span>
+		</a>
+		<a class="stat" href="/admin/requests">
+			<span class="num">{counts.contact}</span>
+			<span>New messages</span>
+		</a>
+		<a class="stat" href="/admin/performers">
+			<span class="num">{totals?.performers ?? 0}</span>
+			<span>Performers</span>
+		</a>
+		<a class="stat" href="/admin/performances">
+			<span class="num">{totals?.performances ?? 0}</span>
+			<span>Performances</span>
+		</a>
+	</div>
+</Admin>
+
+<style>
+	.stats {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: 1em;
+		margin-top: 1.5em;
+	}
+	.stat {
+		background: white;
+		border-radius: 12px;
+		padding: 1.5em;
+		box-shadow: 0 2px 8px rgba(var(--gray), 20%);
+		text-decoration: none;
+		color: inherit;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2em;
+	}
+	.num {
+		font-size: 2.4em;
+		font-weight: 700;
+		line-height: 1;
+		color: var(--accent);
+	}
+</style>

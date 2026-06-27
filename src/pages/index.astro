@@ -1,50 +1,240 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
-import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import Base from "../layouts/Base.astro";
+import {
+	getDb,
+	listUpcomingPerformances,
+	listPastPerformances,
+	listPerformers,
+} from "../lib/db";
+import { mediaUrl } from "../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const upcoming = (await listUpcomingPerformances(db)).slice(0, 3);
+const performances = (await listPastPerformances(db)).slice(0, 3);
+const performers = (await listPerformers(db)).slice(0, 4);
+
+function fmtDate(d: string | null) {
+	if (!d) return "";
+	return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to <a href="https://docs.astro.build/"
-					>read the docs
-				</a> or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out <a
-					href="https://github.com/Charca/astro-blog-template"
-					>astro-blog-template
-				</a> by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
-</html>
+<Base wide>
+	<section class="hero">
+		<span class="eyebrow">♪ Teen musicians · Free community performances</span>
+		<h1>Music that brings <span class="grad">communities together</span></h1>
+		<p class="lede">
+			We're a group of teen musicians performing live for senior living communities and local
+			events — sharing the joy of music with audiences who love it most.
+		</p>
+		<div class="cta-row">
+			<a class="btn btn-primary" href="/request-performance">Request a Performance</a>
+			<a class="btn btn-secondary" href="/get-involved">Join as a Performer</a>
+		</div>
+	</section>
+
+	{
+		upcoming.length > 0 && (
+			<section class="upcoming">
+				<h2>Upcoming Performances</h2>
+				<ul class="event-list">
+					{upcoming.map((p) => (
+						<li>
+							<a href={`/performances/${p.slug}`}>
+								<span class="date">{fmtDate(p.event_date)}</span>
+								<span class="what">
+									<strong>{p.title}</strong>
+									<span class="muted">{[p.venue, p.location].filter(Boolean).join(", ")}</span>
+								</span>
+							</a>
+						</li>
+					))}
+				</ul>
+			</section>
+		)
+	}
+
+	<section>
+		<div class="section-head">
+			<h2>Recent Performances</h2>
+			<a href="/performances">See all →</a>
+		</div>
+		<div class="grid">
+			{
+				performances.map((p) => (
+					<a class="card" href={`/performances/${p.slug}`}>
+						<img src={mediaUrl(p.cover_key)} alt="" />
+						<div class="card-body">
+							<h3>{p.title}</h3>
+							{p.venue && <p class="muted">{p.venue}{p.location ? `, ${p.location}` : ""}</p>}
+							{p.summary && <p>{p.summary}</p>}
+						</div>
+					</a>
+				))
+			}
+		</div>
+		{performances.length === 0 && <p class="muted">Performances will appear here soon.</p>}
+	</section>
+
+	<section>
+		<div class="section-head">
+			<h2>Meet the Performers</h2>
+			<a href="/performers">See all →</a>
+		</div>
+		<div class="grid grid-4">
+			{
+				performers.map((person) => (
+					<div class="card">
+						<img src={mediaUrl(person.photo_key)} alt="" />
+						<div class="card-body">
+							<h3>{person.name}</h3>
+							{person.instrument && <p class="muted">{person.instrument}</p>}
+						</div>
+					</div>
+				))
+			}
+		</div>
+	</section>
+
+	<section class="band">
+		<h2>Are you a senior community or local organizer?</h2>
+		<p>We'd love to perform for your residents or event. There's no cost — just a willing audience.</p>
+		<a class="btn btn-primary" href="/request-performance">Request a Performance</a>
+	</section>
+</Base>
+
+<style>
+	.hero {
+		position: relative;
+		text-align: center;
+		padding: 3.5em 1.5em 3.5em;
+		margin-bottom: 1em;
+		border-radius: var(--radius-lg);
+		background: var(--brand-grad-soft);
+		border: 1px solid rgba(124, 58, 237, 0.12);
+		overflow: hidden;
+	}
+	.eyebrow {
+		display: inline-block;
+		padding: 0.4em 1em;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.7);
+		border: 1px solid rgba(124, 58, 237, 0.18);
+		color: var(--accent-dark);
+		font-weight: 700;
+		font-size: 0.8em;
+		letter-spacing: 0.01em;
+		margin-bottom: 1em;
+	}
+	.hero h1 {
+		font-size: 3.2em;
+		max-width: 16ch;
+		margin: 0 auto 0.3em;
+	}
+	.grad {
+		background: var(--brand-grad);
+		-webkit-background-clip: text;
+		background-clip: text;
+		-webkit-text-fill-color: transparent;
+	}
+	.lede {
+		font-size: 1.2em;
+		max-width: 42ch;
+		margin: 0.5em auto 1.5em;
+		color: rgb(var(--gray-dark));
+	}
+	.cta-row {
+		display: flex;
+		gap: 1em;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+	.section-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1em;
+		margin-top: 2em;
+	}
+	.grid-4 {
+		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	}
+	.card-body h3 {
+		margin: 0 0 0.2em;
+		font-size: 1.2em;
+	}
+	.card-body .muted {
+		margin: 0 0 0.4em;
+	}
+	.band {
+		text-align: center;
+		background: var(--brand-grad);
+		border-radius: var(--radius-lg);
+		padding: 3em 1.5em;
+		margin-top: 3.5em;
+		color: white;
+		box-shadow: var(--shadow-lg);
+	}
+	.band :global(h2) {
+		color: white;
+	}
+	.band p {
+		max-width: 46ch;
+		margin: 0.5em auto 1.5em;
+		color: rgba(255, 255, 255, 0.9);
+	}
+	.band .btn-primary {
+		background: white;
+		color: var(--accent-dark);
+		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+	}
+	.band .btn-primary:hover {
+		color: var(--accent-dark);
+	}
+	.upcoming {
+		margin-top: 2em;
+	}
+	.event-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
+	}
+	.event-list li {
+		background: white;
+		border-bottom: 1px solid rgb(var(--gray-light));
+	}
+	.event-list li:last-child {
+		border-bottom: none;
+	}
+	.event-list a {
+		display: flex;
+		gap: 1.2em;
+		align-items: baseline;
+		padding: 1em 1.2em;
+		text-decoration: none;
+		color: inherit;
+	}
+	.event-list a:hover {
+		background: rgba(var(--gray-light), 50%);
+	}
+	.event-list .date {
+		flex: 0 0 11em;
+		font-weight: 700;
+		color: var(--accent);
+	}
+	.event-list .what {
+		display: flex;
+		flex-direction: column;
+	}
+	@media (max-width: 560px) {
+		.event-list a {
+			flex-direction: column;
+			gap: 0.2em;
+		}
+	}
+</style>

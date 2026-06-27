@@ -1,0 +1,35 @@
+---
+import Base from "../layouts/Base.astro";
+
+export const prerender = false;
+
+const type = Astro.url.searchParams.get("type");
+const message =
+	type === "hosting"
+		? "Thanks for your request! We'll review it and get back to you about scheduling a performance."
+		: type === "volunteer"
+			? "Thanks for applying! We'll be in touch soon about next steps."
+			: type === "contact"
+				? "Thanks for your message! We'll get back to you soon."
+				: "Thanks for reaching out — we'll be in touch soon.";
+---
+
+<Base title="Thank You">
+	<div class="center">
+		<h1>Thank you 🎵</h1>
+		<p class="lede">{message}</p>
+		<a class="btn btn-primary" href="/">Back to home</a>
+	</div>
+</Base>
+
+<style>
+	.center {
+		text-align: center;
+		padding: 2em 0 3em;
+	}
+	.lede {
+		font-size: 1.2em;
+		max-width: 45ch;
+		margin: 0.5em auto 1.5em;
+	}
+</style>

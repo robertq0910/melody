@@ -1,0 +1,106 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getDb, listUpcomingPerformances, listPastPerformances } from "../../lib/db";
+import type { Performance } from "../../lib/db";
+import { mediaUrl } from "../../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const upcoming = await listUpcomingPerformances(db);
+const past = await listPastPerformances(db);
+
+function fmtDate(d: string | null) {
+	if (!d) return "";
+	return new Date(d).toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+}
+---
+
+<Base wide title="Performances">
+	<h1>Performances</h1>
+	<p class="lede">Come see us live, or look back at where we've played.</p>
+
+	{
+		upcoming.length > 0 && (
+			<section>
+				<div class="up-head">
+					<h2>Upcoming</h2>
+					<a class="ical" href="/events.ics">📅 Add to calendar</a>
+				</div>
+				<div class="grid">
+					{upcoming.map((p: Performance) => (
+						<a class="card" href={`/performances/${p.slug}`}>
+							<img src={mediaUrl(p.cover_key)} alt="" />
+							<div class="card-body">
+								<span class="pill">{fmtDate(p.event_date)}</span>
+								<h3>{p.title}</h3>
+								<p class="muted">{[p.venue, p.location].filter(Boolean).join(", ")}</p>
+								{p.summary && <p>{p.summary}</p>}
+							</div>
+						</a>
+					))}
+				</div>
+			</section>
+		)
+	}
+
+	<section>
+		<h2>{upcoming.length > 0 ? "Past Performances" : "Past"}</h2>
+		<div class="grid">
+			{
+				past.map((p: Performance) => (
+					<a class="card" href={`/performances/${p.slug}`}>
+						<img src={mediaUrl(p.cover_key)} alt="" />
+						<div class="card-body">
+							<h3>{p.title}</h3>
+							<p class="muted">
+								{[p.venue, p.location].filter(Boolean).join(", ")}
+								{p.event_date && ` · ${fmtDate(p.event_date)}`}
+							</p>
+							{p.summary && <p>{p.summary}</p>}
+						</div>
+					</a>
+				))
+			}
+		</div>
+		{past.length === 0 && <p class="muted">No past performances yet.</p>}
+	</section>
+</Base>
+
+<style>
+	.lede {
+		font-size: 1.15em;
+		color: rgb(var(--gray-dark));
+		margin-bottom: 1.5em;
+	}
+	section {
+		margin-bottom: 2.5em;
+	}
+	.card-body h3 {
+		margin: 0.2em 0;
+	}
+	.pill {
+		display: inline-block;
+		background: var(--accent);
+		color: white;
+		font-size: 0.8em;
+		font-weight: 700;
+		padding: 0.15em 0.7em;
+		border-radius: 999px;
+	}
+	.up-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1em;
+	}
+	.ical {
+		font-weight: 700;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+</style>
