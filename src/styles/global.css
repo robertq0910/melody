@@ -23,10 +23,11 @@
 	--bg: #faf8ff;
 
 	/* Design tokens */
-	--radius-sm: 10px;
-	--radius: 16px;
-	--radius-lg: 24px;
-	--font-display: "Plus Jakarta Sans", "Atkinson", system-ui, sans-serif;
+	--radius-sm: 12px;
+	--radius: 18px;
+	--radius-lg: 28px;
+	--font-display: "Plus Jakarta Sans", "Nunito", "Atkinson", system-ui, sans-serif;
+	--font-body: "Nunito", "Atkinson", system-ui, sans-serif;
 	--ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 	--shadow-sm: 0 1px 2px rgba(26, 22, 46, 0.06), 0 2px 8px rgba(26, 22, 46, 0.05);
@@ -49,7 +50,7 @@
 	font-display: swap;
 }
 body {
-	font-family: "Atkinson", system-ui, sans-serif;
+	font-family: var(--font-body);
 	margin: 0;
 	padding: 0;
 	text-align: left;
@@ -61,7 +62,8 @@ body {
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	color: rgb(var(--gray-dark));
-	font-size: 20px;
+	/* Fluid base size: comfy on phones, a touch larger on desktop. */
+	font-size: clamp(17px, 16px + 0.35vw, 20px);
 	line-height: 1.7;
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
@@ -86,19 +88,19 @@ h6 {
 	font-weight: 800;
 }
 h1 {
-	font-size: 3.052em;
+	font-size: clamp(2.1rem, 1.5rem + 2.8vw, 3.1rem);
 }
 h2 {
-	font-size: 2.441em;
+	font-size: clamp(1.65rem, 1.25rem + 1.9vw, 2.4rem);
 }
 h3 {
-	font-size: 1.953em;
+	font-size: clamp(1.4rem, 1.15rem + 1.2vw, 1.95rem);
 }
 h4 {
-	font-size: 1.563em;
+	font-size: clamp(1.2rem, 1.05rem + 0.7vw, 1.55rem);
 }
 h5 {
-	font-size: 1.25em;
+	font-size: 1.2rem;
 }
 strong,
 b {
@@ -156,11 +158,11 @@ hr {
 	border-top: 1px solid rgb(var(--gray-light));
 }
 @media (max-width: 720px) {
-	body {
-		font-size: 18px;
-	}
 	main {
-		padding: 1em;
+		padding: 1.5em 1em 2em;
+	}
+	.prose p {
+		margin-bottom: 1.3em;
 	}
 }
 
@@ -170,7 +172,9 @@ hr {
 	align-items: center;
 	justify-content: center;
 	gap: 0.5em;
-	padding: 0.7em 1.5em;
+	padding: 0.8em 1.6em;
+	min-height: 48px; /* comfortable tap target on touch screens */
+	box-sizing: border-box;
 	border-radius: 999px;
 	text-decoration: none;
 	font-weight: 700;

@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import PerformanceMap from "../components/PerformanceMap.astro";
 import {
 	getDb,
 	listUpcomingPerformances,
@@ -78,6 +79,8 @@ function fmtDate(d: string | null) {
 		{performances.length === 0 && <p class="muted">Performances will appear here soon.</p>}
 	</section>
 
+	<PerformanceMap title="Where we play" />
+
 	<section>
 		<div class="section-head">
 			<h2>Meet the Performers</h2>
@@ -129,7 +132,7 @@ function fmtDate(d: string | null) {
 		margin-bottom: 1em;
 	}
 	.hero h1 {
-		font-size: 3.2em;
+		font-size: clamp(2.3rem, 1.3rem + 4.4vw, 3.4rem);
 		max-width: 16ch;
 		margin: 0 auto 0.3em;
 	}
@@ -232,9 +235,28 @@ function fmtDate(d: string | null) {
 		flex-direction: column;
 	}
 	@media (max-width: 560px) {
+		.hero {
+			padding: 2.5em 1.1em;
+		}
 		.event-list a {
 			flex-direction: column;
 			gap: 0.2em;
+		}
+		.event-list .date {
+			flex-basis: auto;
+		}
+		.section-head {
+			flex-wrap: wrap;
+			gap: 0.3em;
+		}
+		/* Stack the call-to-action buttons full width so they're easy to tap. */
+		.cta-row,
+		.band {
+			gap: 0.75em;
+		}
+		.cta-row .btn,
+		.band .btn {
+			width: 100%;
 		}
 	}
 </style>

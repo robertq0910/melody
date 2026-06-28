@@ -1,0 +1,224 @@
+---
+// A Leaflet + OpenStreetMap map of performance locations.
+// Leaflet is loaded from a CDN (no API key, no billing). Points come from
+// /api/performance-locations.json and are drawn as colored pins: upcoming vs.
+// recent. The whole section hides itself if there are no resolvable locations.
+interface Props {
+	title?: string;
+}
+const { title = "Where we play" } = Astro.props;
+---
+
+<section class="map-section" aria-label="Map of performance locations">
+	<div class="map-head">
+		<h2>{title}</h2>
+		<div class="legend" aria-hidden="true">
+			<span class="legend-item"><i class="dot up"></i> Upcoming</span>
+			<span class="legend-item"><i class="dot past"></i> Recent</span>
+		</div>
+	</div>
+	<div id="perf-map" class="perf-map" role="img" aria-label="Performance locations">
+		<p class="map-fallback">Loading map…</p>
+	</div>
+</section>
+
+<script is:inline>
+	(function () {
+		var el = document.getElementById("perf-map");
+		if (!el) return;
+
+		var LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+		var LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+		function loadCss(href) {
+			if (document.querySelector('link[href="' + href + '"]')) return;
+			var link = document.createElement("link");
+			link.rel = "stylesheet";
+			link.href = href;
+			document.head.appendChild(link);
+		}
+
+		function loadScript(src) {
+			return new Promise(function (resolve, reject) {
+				if (window.L) return resolve();
+				var existing = document.querySelector('script[src="' + src + '"]');
+				if (existing) {
+					existing.addEventListener("load", function () {
+						resolve();
+					});
+					existing.addEventListener("error", reject);
+					return;
+				}
+				var s = document.createElement("script");
+				s.src = src;
+				s.onload = function () {
+					resolve();
+				};
+				s.onerror = reject;
+				document.head.appendChild(s);
+			});
+		}
+
+		function escapeHtml(s) {
+			return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+				return {
+					"&": "&amp;",
+					"<": "&lt;",
+					">": "&gt;",
+					'"': "&quot;",
+					"'": "&#39;",
+				}[c];
+			});
+		}
+
+		function hideSection() {
+			var section = el.closest(".map-section");
+			if (section) section.style.display = "none";
+		}
+
+		async function init() {
+			var data;
+			try {
+				var res = await fetch("/api/performance-locations.json");
+				data = await res.json();
+			} catch (e) {
+				hideSection();
+				return;
+			}
+
+			var points = (data && data.points) || [];
+			if (points.length === 0) {
+				hideSection();
+				return;
+			}
+
+			loadCss(LEAFLET_CSS);
+			try {
+				await loadScript(LEAFLET_JS);
+			} catch (e) {
+				hideSection();
+				return;
+			}
+			var L = window.L;
+			if (!L) {
+				hideSection();
+				return;
+			}
+
+			el.innerHTML = "";
+			var map = L.map(el, { scrollWheelZoom: false });
+			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+				attribution:
+					'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+				maxZoom: 19,
+			}).addTo(map);
+
+			var colors = { upcoming: "#6d28d9", past: "#ec4899" };
+			var latlngs = [];
+			points.forEach(function (p) {
+				if (typeof p.lat !== "number" || typeof p.lng !== "number") return;
+				var marker = L.circleMarker([p.lat, p.lng], {
+					radius: 9,
+					color: "#ffffff",
+					weight: 2,
+					fillColor: colors[p.kind] || colors.past,
+					fillOpacity: 1,
+				}).addTo(map);
+				var place = [p.venue, p.location].filter(Boolean).join(", ");
+				marker.bindPopup(
+					"<strong>" +
+						escapeHtml(p.title) +
+						"</strong><br>" +
+						(place ? "<span>" + escapeHtml(place) + "</span><br>" : "") +
+						'<a href="/performances/' +
+						encodeURIComponent(p.slug) +
+						'">View details &rarr;</a>',
+				);
+				latlngs.push([p.lat, p.lng]);
+			});
+
+			if (latlngs.length === 0) {
+				hideSection();
+				return;
+			}
+			if (latlngs.length === 1) {
+				map.setView(latlngs[0], 12);
+			} else {
+				map.fitBounds(latlngs, { padding: [40, 40] });
+			}
+		}
+
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", init);
+		} else {
+			init();
+		}
+	})();
+</script>
+
+<style>
+	.map-section {
+		margin: 2.5em 0;
+	}
+	.map-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1em;
+		flex-wrap: wrap;
+		margin-bottom: 0.8em;
+	}
+	.map-head h2 {
+		margin: 0;
+	}
+	.legend {
+		display: flex;
+		gap: 1.1em;
+		font-size: 0.9em;
+		font-weight: 700;
+		color: rgb(var(--gray-dark));
+	}
+	.legend-item {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4em;
+	}
+	.dot {
+		width: 0.85em;
+		height: 0.85em;
+		border-radius: 50%;
+		border: 2px solid #fff;
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+	}
+	.dot.up {
+		background: #6d28d9;
+	}
+	.dot.past {
+		background: #ec4899;
+	}
+	.perf-map {
+		height: 420px;
+		border-radius: var(--radius);
+		overflow: hidden;
+		box-shadow: var(--shadow-sm);
+		background: var(--brand-grad-soft);
+		/* Contain Leaflet's internal z-indexes (panes/controls reach ~1000) inside
+		   the map's own stacking context, so they never paint over the sticky
+		   header (z-index 50). */
+		position: relative;
+		z-index: 0;
+		isolation: isolate;
+	}
+	.map-fallback {
+		display: grid;
+		place-items: center;
+		height: 100%;
+		margin: 0;
+		color: rgb(var(--gray-dark));
+	}
+	@media (max-width: 560px) {
+		.perf-map {
+			height: 320px;
+		}
+	}
+</style>

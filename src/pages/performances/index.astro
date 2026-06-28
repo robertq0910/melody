@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import PerformanceMap from "../../components/PerformanceMap.astro";
 import { getDb, listUpcomingPerformances, listPastPerformances } from "../../lib/db";
 import type { Performance } from "../../lib/db";
 import { mediaUrl } from "../../lib/media";
@@ -23,6 +24,8 @@ function fmtDate(d: string | null) {
 <Base wide title="Performances">
 	<h1>Performances</h1>
 	<p class="lede">Come see us live, or look back at where we've played.</p>
+
+	<PerformanceMap title="Where we play" />
 
 	{
 		upcoming.length > 0 && (

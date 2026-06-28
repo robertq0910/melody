@@ -92,11 +92,17 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 	}
 	.menu-toggle {
 		display: none;
-		font-size: 1.4em;
+		font-size: 1.5em;
+		line-height: 1;
 		background: none;
 		border: none;
 		cursor: pointer;
 		color: rgb(var(--gray-dark));
+		padding: 0.4em;
+		border-radius: 12px;
+	}
+	.menu-toggle:hover {
+		background: rgba(var(--gray-light), 0.7);
 	}
 	@media (max-width: 760px) {
 		.menu-toggle {
@@ -106,10 +112,17 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 			flex-basis: 100%;
 			flex-direction: column;
 			display: none;
-			padding-bottom: 0.5em;
+			gap: 0.1em;
+			padding-bottom: 0.6em;
 		}
 		.internal-links.open {
 			display: flex;
+		}
+		/* Roomier, easy-to-tap rows when the menu is open on a phone. */
+		nav :global(a) {
+			padding: 0.85em 1em;
+			margin: 0;
+			font-size: 1.05em;
 		}
 	}
 </style>
