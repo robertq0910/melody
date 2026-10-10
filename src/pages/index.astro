@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import PerformanceMap from "../components/PerformanceMap.astro";
+import CoverImage from "../components/CoverImage.astro";
 import {
 	getDb,
 	listUpcomingPerformances,
@@ -66,7 +67,7 @@ function fmtDate(d: string | null) {
 			{
 				performances.map((p) => (
 					<a class="card" href={`/performances/${p.slug}`}>
-						<img src={mediaUrl(p.cover_key)} alt="" />
+						<CoverImage src={mediaUrl(p.cover_key)} date={p.event_date} />
 						<div class="card-body">
 							<h3>{p.title}</h3>
 							{p.venue && <p class="muted">{p.venue}{p.location ? `, ${p.location}` : ""}</p>}

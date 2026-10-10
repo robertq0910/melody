@@ -157,6 +157,24 @@ export async function getPerformanceById(
 	return db.prepare("SELECT * FROM performances WHERE id = ?").bind(id).first<Performance>();
 }
 
+// A performance slug not used by any other performance: `base`, else `base-2`,
+// `base-3`, ... Pass `exceptId` when updating so a row doesn't clash with itself.
+export async function uniquePerformanceSlug(
+	db: D1Database,
+	base: string,
+	exceptId: number | null = null,
+): Promise<string> {
+	const { results } = await db
+		.prepare("SELECT slug FROM performances WHERE (slug = ? OR slug LIKE ?) AND id IS NOT ?")
+		.bind(base, `${base}-%`, exceptId)
+		.all<{ slug: string }>();
+	const taken = new Set(results.map((r) => r.slug));
+	if (!taken.has(base)) return base;
+	let n = 2;
+	while (taken.has(`${base}-${n}`)) n++;
+	return `${base}-${n}`;
+}
+
 // IDs of performers linked to a performance (for pre-selecting the edit form).
 export async function performerIdsForPerformance(
 	db: D1Database,

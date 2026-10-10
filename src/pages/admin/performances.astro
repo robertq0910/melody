@@ -1,7 +1,7 @@
 ---
 import Admin from "../../layouts/Admin.astro";
 import { uploadImage, slugify } from "../../lib/admin";
-import { getDb } from "../../lib/db";
+import { getDb, uniquePerformanceSlug } from "../../lib/db";
 import { mediaUrl } from "../../lib/media";
 
 export const prerender = false;
@@ -27,7 +27,7 @@ if (Astro.request.method === "POST") {
 				)
 				.bind(
 					title,
-					slugify(title) || `performance-${Date.now()}`,
+					await uniquePerformanceSlug(db, slugify(title) || "performance"),
 					String(form.get("venue") ?? "").trim() || null,
 					String(form.get("location") ?? "").trim() || null,
 					String(form.get("event_date") ?? "").trim() || null,
@@ -102,6 +102,12 @@ const { results: allPerformers } = await db
 									<a class="link-btn" href={`/performances/${p.slug}`} target="_blank">
 										View
 									</a>
+									<form method="POST" action={`/admin/performances/${p.id}`}>
+										<input type="hidden" name="action" value="clone" />
+										<button class="link-btn" type="submit" title="Copy details (no pictures) as a new hidden performance">
+											Clone
+										</button>
+									</form>
 									<form method="POST">
 										<input type="hidden" name="action" value="toggle" />
 										<input type="hidden" name="id" value={p.id} />
@@ -153,14 +159,14 @@ const { results: allPerformers } = await db
 				</div>
 				<div class="field">
 					<label for="cover">Cover photo</label>
-					<input id="cover" name="cover" type="file" accept="image/*" />
+					<input id="cover" name="cover" type="file" accept="image/*" data-crop="3/2" />
 				</div>
 				<div class="field">
 					<label for="performers">Performers</label>
 					<select id="performers" name="performers" multiple size="5">
 						{allPerformers.map((p: any) => <option value={p.id}>{p.name}</option>)}
 					</select>
-					<span class="hint">Ctrl/Cmd-click to select several.</span>
+					<span class="hint">Ctrl/Cmd-click to select several (on a phone, just tap each name).</span>
 				</div>
 				<button class="btn btn-primary" type="submit">Add performance</button>
 			</form>
@@ -233,9 +239,44 @@ const { results: allPerformers } = await db
 	select[multiple] {
 		width: 100%;
 	}
+	.actions {
+		flex-wrap: wrap;
+	}
 	@media (max-width: 800px) {
 		.layout {
 			grid-template-columns: 1fr;
+		}
+	}
+	@media (max-width: 640px) {
+		/* Each row becomes a card: thumb · name · status, with actions on their own line. */
+		.list,
+		.list tbody {
+			display: block;
+		}
+		.list tr {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			align-items: center;
+			gap: 0.3em 0.8em;
+			padding: 0.8em 0.9em 0.3em;
+			border-bottom: 1px solid rgb(var(--gray-light));
+		}
+		.list td {
+			padding: 0;
+			border: none;
+		}
+		.list td.actions {
+			grid-column: 1 / -1;
+			gap: 0 1.2em;
+		}
+		.link-btn {
+			display: inline-flex;
+			align-items: center;
+			min-height: 44px;
+			font-size: 1em;
+		}
+		.form-card {
+			padding: 1em;
 		}
 	}
 </style>

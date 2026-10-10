@@ -161,7 +161,7 @@ function fmt(d: string) {
 <style>
 	.cards {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
 		gap: 1em;
 		margin-bottom: 2.5em;
 	}
@@ -170,6 +170,7 @@ function fmt(d: string) {
 		border-radius: 12px;
 		padding: 1.2em;
 		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
+		overflow-wrap: anywhere;
 	}
 	.req p {
 		margin: 0.2em 0;
@@ -178,6 +179,10 @@ function fmt(d: string) {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 0.6em;
+	}
+	.badge {
+		flex-shrink: 0;
 	}
 	.small {
 		font-size: 0.8em;
@@ -238,5 +243,32 @@ function fmt(d: string) {
 		padding: 0.3em;
 		border-radius: 6px;
 		border: 1px solid rgb(var(--gray-light));
+	}
+	@media (max-width: 640px) {
+		.head-row {
+			flex-wrap: wrap;
+			gap: 0 1em;
+		}
+		.head-row h1 {
+			font-size: 1.6rem;
+		}
+		.export {
+			display: inline-flex;
+			align-items: center;
+			min-height: 44px;
+		}
+		.req {
+			padding: 1em;
+		}
+		/* Full-width, finger-sized status controls. */
+		.status-form select {
+			flex: 1;
+			min-height: 44px;
+			font-size: 16px;
+		}
+		.status-form .btn-sm {
+			min-height: 44px;
+			padding: 0 1.2em;
+		}
 	}
 </style>

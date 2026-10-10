@@ -6,6 +6,7 @@ import {
 	getPerformanceById,
 	performerIdsForPerformance,
 	listPerformancePhotos,
+	uniquePerformanceSlug,
 } from "../../../lib/db";
 import { mediaUrl } from "../../../lib/media";
 
@@ -47,7 +48,7 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 				)
 				.bind(
 					title,
-					slugify(title) || existing.slug,
+					await uniquePerformanceSlug(db, slugify(title) || existing.slug, id),
 					String(form.get("venue") ?? "").trim() || null,
 					String(form.get("location") ?? "").trim() || null,
 					String(form.get("event_date") ?? "").trim() || null,
@@ -72,20 +73,56 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 						.run();
 				}
 			}
-		} else if (action === "add_photo") {
-			const photoKey = await uploadImage(bucket, form.get("photo"), "gallery");
-			if (!photoKey) throw new Error("Choose an image to upload.");
-			await db
+		} else if (action === "clone") {
+			// Copy everything except the cover and gallery photos, as a hidden draft.
+			const title = `${existing.title} (copy)`;
+			const res = await db
 				.prepare(
-					"INSERT INTO performance_photos (performance_id, photo_key, caption, sort_order) VALUES (?, ?, ?, ?)",
+					`INSERT INTO performances
+					 (title, slug, venue, location, event_date, summary, description, cover_key, published)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0)`,
 				)
 				.bind(
-					id,
-					photoKey,
-					String(form.get("caption") ?? "").trim() || null,
-					parseInt(String(form.get("sort_order") ?? "0"), 10) || 0,
+					title,
+					await uniquePerformanceSlug(db, slugify(title) || "performance"),
+					existing.venue,
+					existing.location,
+					existing.event_date,
+					existing.summary,
+					existing.description,
 				)
 				.run();
+			const cloneId = res.meta.last_row_id;
+			await db
+				.prepare(
+					`INSERT INTO performance_performers (performance_id, performer_id)
+					 SELECT ?, performer_id FROM performance_performers WHERE performance_id = ?`,
+				)
+				.bind(cloneId, id)
+				.run();
+			return Astro.redirect(`/admin/performances/${cloneId}?cloned=1`);
+		} else if (action === "add_photo") {
+			const files = form.getAll("photo").filter((f) => f instanceof File && f.size > 0);
+			if (files.length === 0) throw new Error("Choose at least one image to upload.");
+			const caption = String(form.get("caption") ?? "").trim() || null;
+			const startOrder = parseInt(String(form.get("sort_order") ?? "0"), 10) || 0;
+			// Upload in selection order; photos already saved stay saved if a later one fails.
+			for (const [i, file] of files.entries()) {
+				let photoKey: string | null;
+				try {
+					photoKey = await uploadImage(bucket, file, "gallery");
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : "Upload failed.";
+					throw new Error(`Uploaded ${i} of ${files.length}. "${(file as File).name}": ${msg}`);
+				}
+				if (!photoKey) continue;
+				await db
+					.prepare(
+						"INSERT INTO performance_photos (performance_id, photo_key, caption, sort_order) VALUES (?, ?, ?, ?)",
+					)
+					.bind(id, photoKey, caption, startOrder + i)
+					.run();
+			}
 		} else if (action === "delete_photo") {
 			const photoId = parseInt(String(form.get("photo_id")), 10);
 			const photo = await db
@@ -117,7 +154,27 @@ const { results: allPerformers } = await db
 
 <Admin title={`Edit ${performance.title}`}>
 	<p><a href="/admin/performances">← Back to performances</a></p>
-	<h1>Edit performance</h1>
+	<div class="title-row">
+		<h1>Edit performance</h1>
+		<form method="POST">
+			<input type="hidden" name="action" value="clone" />
+			<button
+				class="btn btn-secondary"
+				type="submit"
+				title="Make a new performance with the same details (no pictures)"
+			>
+				Clone
+			</button>
+		</form>
+	</div>
+	{
+		Astro.url.searchParams.has("cloned") && (
+			<div class="notice notice-success">
+				This is a new copy (without pictures). It's hidden from the site until you check
+				“Visible on site” and save.
+			</div>
+		)
+	}
 	{error && <div class="notice notice-error">{error}</div>}
 
 	<div class="cols">
@@ -166,7 +223,7 @@ const { results: allPerformers } = await db
 			</div>
 			<div class="field">
 				<label for="cover">Replace cover</label>
-				<input id="cover" name="cover" type="file" accept="image/*" />
+				<input id="cover" name="cover" type="file" accept="image/*" data-crop="3/2" />
 			</div>
 			<div class="field">
 				<label for="performers">Performers</label>
@@ -179,7 +236,7 @@ const { results: allPerformers } = await db
 						))
 					}
 				</select>
-				<span class="hint">Ctrl/Cmd-click to select several.</span>
+				<span class="hint">Ctrl/Cmd-click to select several (on a phone, just tap each name).</span>
 			</div>
 			<div class="field">
 				<label class="inline">
@@ -212,24 +269,37 @@ const { results: allPerformers } = await db
 			<form method="POST" enctype="multipart/form-data" class="add-photo">
 				<input type="hidden" name="action" value="add_photo" />
 				<div class="field">
-					<label for="photo">Add photo</label>
-					<input id="photo" name="photo" type="file" accept="image/*" required />
+					<label for="photo">Add photos</label>
+					<input id="photo" name="photo" type="file" accept="image/*" multiple required data-crop="free" />
+					<small class="muted">Select several at once. Each must be under 5 MB.</small>
 				</div>
 				<div class="field">
 					<label for="caption">Caption</label>
 					<input id="caption" name="caption" />
+					<small class="muted">Applied to every photo in this upload. Leave blank for none.</small>
 				</div>
 				<div class="field">
 					<label for="sort_order">Sort order</label>
 					<input id="sort_order" name="sort_order" type="number" value="0" />
+					<small class="muted">Photos in one upload are numbered up from this, in the order selected.</small>
 				</div>
-				<button class="btn btn-secondary" type="submit">Upload photo</button>
+				<button class="btn btn-secondary" type="submit">Upload photos</button>
 			</form>
 		</aside>
 	</div>
 </Admin>
 
 <style>
+	.title-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.6em 1em;
+	}
+	.title-row h1 {
+		margin: 0;
+	}
 	.cols {
 		display: grid;
 		grid-template-columns: 1fr 320px;
@@ -295,6 +365,15 @@ const { results: allPerformers } = await db
 	@media (max-width: 820px) {
 		.cols {
 			grid-template-columns: 1fr;
+		}
+	}
+	@media (max-width: 640px) {
+		.gallery-admin {
+			padding: 1em;
+		}
+		.link-btn {
+			min-height: 44px;
+			font-size: 0.95em;
 		}
 	}
 </style>

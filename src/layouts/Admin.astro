@@ -1,5 +1,6 @@
 ---
 import BaseHead from "../components/BaseHead.astro";
+import PhotoEditor from "../components/PhotoEditor.astro";
 import { adminEmail } from "../lib/admin";
 
 interface Props {
@@ -32,6 +33,7 @@ const email = adminEmail(Astro.request);
 		<main>
 			<slot />
 		</main>
+		<PhotoEditor />
 		<style>
 			.admin-header {
 				background: rgb(var(--black));
@@ -64,6 +66,47 @@ const email = adminEmail(Astro.request);
 			}
 			main {
 				width: 1000px;
+			}
+			@media (max-width: 640px) {
+				.admin-header {
+					padding: 0.25em 0;
+					position: sticky;
+					top: 0;
+					z-index: 10;
+				}
+				.admin-header nav {
+					flex-wrap: nowrap;
+					gap: 0;
+				}
+				.admin-header .brand {
+					padding: 0 0.6em 0 1em;
+				}
+				/* One swipeable row of nav links instead of wrapping onto several lines. */
+				.admin-header .links {
+					flex-wrap: nowrap;
+					gap: 0;
+					overflow-x: auto;
+					scrollbar-width: none;
+					-webkit-overflow-scrolling: touch;
+				}
+				.admin-header .links::-webkit-scrollbar {
+					display: none;
+				}
+				.admin-header a {
+					display: flex;
+					align-items: center;
+					min-height: 44px;
+					padding: 0 0.6em;
+					white-space: nowrap;
+					font-size: 0.95em;
+				}
+				.admin-header .who {
+					display: none;
+				}
+				main {
+					padding: 1.2em 0.75em 2em;
+					max-width: calc(100% - 1.5em);
+				}
 			}
 		</style>
 	</body>

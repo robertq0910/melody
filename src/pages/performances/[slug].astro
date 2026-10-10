@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import CoverImage from "../../components/CoverImage.astro";
 import {
 	getDb,
 	getPerformanceBySlug,
@@ -33,23 +34,40 @@ function fmtDate(d: string | null) {
 
 <Base title={performance.title} description={performance.summary ?? undefined}>
 	<article>
-		{performance.cover_key && <img class="cover" src={mediaUrl(performance.cover_key)} alt="" />}
+		{
+			performance.cover_key && (
+				<a class="cover-link" href={mediaUrl(performance.cover_key)} data-lightbox data-caption="">
+					<CoverImage
+						class="cover"
+						src={mediaUrl(performance.cover_key)}
+						alt={performance.title}
+						date={performance.event_date}
+						long
+					/>
+				</a>
+			)
+		}
 		<h1>{performance.title}</h1>
 		<p class="meta">
 			{[performance.venue, performance.location].filter(Boolean).join(", ")}
-			{performance.event_date && ` · ${fmtDate(performance.event_date)}`}
+			{!performance.cover_key && performance.event_date && ` · ${fmtDate(performance.event_date)}`}
 		</p>
 		{performance.description && <p class="prose-text">{performance.description}</p>}
 
 		{
 			photos.length > 0 && (
-				<section class="gallery">
-					{photos.map((photo) => (
-						<figure>
-							<img src={mediaUrl(photo.photo_key)} alt={photo.caption ?? ""} loading="lazy" />
-							{photo.caption && <figcaption>{photo.caption}</figcaption>}
-						</figure>
-					))}
+				<section>
+					<h2>Photos</h2>
+					<div class="gallery">
+						{photos.map((photo) => (
+							<figure>
+								<a href={mediaUrl(photo.photo_key)} data-lightbox data-caption={photo.caption ?? ""}>
+									<img src={mediaUrl(photo.photo_key)} alt={photo.caption ?? ""} loading="lazy" />
+								</a>
+								{photo.caption && <figcaption>{photo.caption}</figcaption>}
+							</figure>
+						))}
+					</div>
 				</section>
 			)
 		}
@@ -72,14 +90,25 @@ function fmtDate(d: string | null) {
 
 		<p><a href="/performances">← Back to all performances</a></p>
 	</article>
+
+	<dialog class="lightbox" aria-label="Photo viewer">
+		<img class="lb-img" alt="" />
+		<p class="lb-cap"></p>
+		<p class="lb-count"></p>
+		<button class="lb-btn lb-close" type="button" aria-label="Close">×</button>
+		<button class="lb-btn lb-prev" type="button" aria-label="Previous photo">‹</button>
+		<button class="lb-btn lb-next" type="button" aria-label="Next photo">›</button>
+	</dialog>
 </Base>
 
 <style>
-	.cover {
+	.cover-link :global(.cover) {
 		width: 100%;
 		max-height: 420px;
 		object-fit: cover;
 		border-radius: 12px;
+	}
+	.cover-link {
 		margin-bottom: 1em;
 	}
 	.meta {
@@ -112,4 +141,140 @@ function fmtDate(d: string | null) {
 		color: rgb(var(--gray));
 		margin-top: 0.2em;
 	}
+	.cover-link,
+	.gallery a {
+		display: block;
+		border-radius: 8px;
+		cursor: zoom-in;
+	}
+	.cover-link:hover :global(img),
+	.gallery a:hover img {
+		opacity: 0.9;
+	}
+	.lightbox {
+		width: 100vw;
+		height: 100dvh;
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		padding: 0;
+		border: none;
+		background: rgba(10, 8, 20, 0.94);
+		color: white;
+	}
+	.lightbox[open] {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+	.lightbox::backdrop {
+		background: transparent;
+	}
+	.lb-img {
+		max-width: calc(100vw - 32px);
+		max-height: calc(100dvh - 140px);
+		object-fit: contain;
+		border-radius: 8px;
+		touch-action: pan-y;
+	}
+	.lb-cap {
+		margin: 0.8em 16px 0;
+		text-align: center;
+		min-height: 1.4em;
+	}
+	.lb-count {
+		margin: 0.2em 0 0;
+		font-size: 0.85em;
+		opacity: 0.7;
+	}
+	.lb-btn {
+		position: absolute;
+		width: 48px;
+		height: 48px;
+		border: none;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: white;
+		font-size: 2em;
+		line-height: 1;
+		cursor: pointer;
+	}
+	.lb-btn:hover,
+	.lb-btn:focus-visible {
+		background: rgba(255, 255, 255, 0.28);
+	}
+	.lb-close {
+		top: 12px;
+		right: 12px;
+	}
+	.lb-prev,
+	.lb-next {
+		top: 50%;
+		transform: translateY(-50%);
+	}
+	.lb-prev {
+		left: 12px;
+	}
+	.lb-next {
+		right: 12px;
+	}
 </style>
+
+<script>
+	// Cover + gallery photos open in one full-screen viewer, cover first.
+	const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[data-lightbox]"));
+	const dialog = document.querySelector<HTMLDialogElement>(".lightbox");
+	if (links.length > 0 && dialog) {
+		const img = dialog.querySelector<HTMLImageElement>(".lb-img")!;
+		const cap = dialog.querySelector<HTMLElement>(".lb-cap")!;
+		const count = dialog.querySelector<HTMLElement>(".lb-count")!;
+		const prev = dialog.querySelector<HTMLButtonElement>(".lb-prev")!;
+		const next = dialog.querySelector<HTMLButtonElement>(".lb-next")!;
+		let index = 0;
+
+		const show = (i: number) => {
+			index = (i + links.length) % links.length;
+			const link = links[index];
+			img.src = link.href;
+			img.alt = link.dataset.caption ?? "";
+			cap.textContent = link.dataset.caption ?? "";
+			count.textContent = `${index + 1} / ${links.length}`;
+		};
+
+		const single = links.length < 2;
+		prev.hidden = single;
+		next.hidden = single;
+		count.hidden = single;
+
+		links.forEach((link, i) =>
+			link.addEventListener("click", (e) => {
+				e.preventDefault();
+				show(i);
+				dialog.showModal();
+			}),
+		);
+		prev.addEventListener("click", () => show(index - 1));
+		next.addEventListener("click", () => show(index + 1));
+		dialog.querySelector(".lb-close")!.addEventListener("click", () => dialog.close());
+		// Clicking the dark area around the photo closes it.
+		dialog.addEventListener("click", (e) => {
+			if (e.target === dialog) dialog.close();
+		});
+		dialog.addEventListener("keydown", (e) => {
+			if (single) return;
+			if (e.key === "ArrowLeft") show(index - 1);
+			if (e.key === "ArrowRight") show(index + 1);
+		});
+
+		// Swipe left/right on touch screens.
+		let startX: number | null = null;
+		img.addEventListener("touchstart", (e) => (startX = e.touches[0].clientX), { passive: true });
+		img.addEventListener("touchend", (e) => {
+			if (startX === null || single) return;
+			const dx = e.changedTouches[0].clientX - startX;
+			startX = null;
+			if (Math.abs(dx) > 40) show(index + (dx < 0 ? 1 : -1));
+		});
+	}
+</script>
