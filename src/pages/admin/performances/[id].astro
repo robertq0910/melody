@@ -1,6 +1,6 @@
 ---
 import Admin from "../../../layouts/Admin.astro";
-import { uploadImage, deleteImage, slugify } from "../../../lib/admin";
+import { uploadImage, copyImage, deleteImage, slugify } from "../../../lib/admin";
 import {
 	getDb,
 	getPerformanceById,
@@ -123,6 +123,31 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 					.bind(id, photoKey, caption, startOrder + i)
 					.run();
 			}
+		} else if (action === "set_cover") {
+			const photoId = parseInt(String(form.get("photo_id")), 10);
+			const photo = await db
+				.prepare("SELECT photo_key FROM performance_photos WHERE id = ? AND performance_id = ?")
+				.bind(photoId, id)
+				.first<{ photo_key: string }>();
+			if (!photo) throw new Error("Photo not found.");
+			// Copy rather than share the key, so the cover and gallery photo can be
+			// replaced/deleted independently.
+			const coverKey = await copyImage(bucket, photo.photo_key, "performances");
+			await db.prepare("UPDATE performances SET cover_key = ? WHERE id = ?").bind(coverKey, id).run();
+			await deleteImage(bucket, existing.cover_key);
+			return Astro.redirect(`/admin/performances/${id}?cover=1`);
+		} else if (action === "replace_photo") {
+			// Sent by the Edit (re-stickered) and Replace (new picture) buttons.
+			const photoId = parseInt(String(form.get("photo_id")), 10);
+			const photo = await db
+				.prepare("SELECT photo_key FROM performance_photos WHERE id = ? AND performance_id = ?")
+				.bind(photoId, id)
+				.first<{ photo_key: string }>();
+			if (!photo) throw new Error("Photo not found.");
+			const newKey = await uploadImage(bucket, form.get("photo"), "gallery");
+			if (!newKey) throw new Error("No edited image was received.");
+			await db.prepare("UPDATE performance_photos SET photo_key = ? WHERE id = ?").bind(newKey, photoId).run();
+			await deleteImage(bucket, photo.photo_key);
 		} else if (action === "delete_photo") {
 			const photoId = parseInt(String(form.get("photo_id")), 10);
 			const photo = await db
@@ -173,6 +198,11 @@ const { results: allPerformers } = await db
 				This is a new copy (without pictures). It's hidden from the site until you check
 				“Visible on site” and save.
 			</div>
+		)
+	}
+	{
+		Astro.url.searchParams.has("cover") && (
+			<div class="notice notice-success">Cover updated from the gallery.</div>
 		)
 	}
 	{error && <div class="notice notice-error">{error}</div>}
@@ -255,11 +285,50 @@ const { results: allPerformers } = await db
 						<div class="g-item">
 							<img src={mediaUrl(photo.photo_key)} alt={photo.caption ?? ""} />
 							{photo.caption && <span class="cap">{photo.caption}</span>}
-							<form method="POST" onsubmit="return confirm('Delete this photo?')">
-								<input type="hidden" name="action" value="delete_photo" />
-								<input type="hidden" name="photo_id" value={photo.id} />
-								<button class="link-btn danger" type="submit">Delete</button>
-							</form>
+							<div class="g-actions">
+								<button
+									class="link-btn"
+									type="button"
+									data-edit-faces={mediaUrl(photo.photo_key)}
+									data-target={`edit-photo-${photo.id}`}
+									title="Add or move cartoon stickers on this photo"
+								>
+									Edit
+								</button>
+								<button
+									class="link-btn"
+									type="button"
+									onclick={`document.getElementById('edit-photo-${photo.id}').click()`}
+									title="Swap in a different picture"
+								>
+									Replace
+								</button>
+								<form method="POST" enctype="multipart/form-data" hidden>
+									<input type="hidden" name="action" value="replace_photo" />
+									<input type="hidden" name="photo_id" value={photo.id} />
+									<input
+										id={`edit-photo-${photo.id}`}
+										name="photo"
+										type="file"
+										accept="image/*"
+										data-crop="free"
+										data-autosubmit
+									/>
+								</form>
+								<form
+									method="POST"
+									onsubmit="return confirm('Use this photo as the cover? It replaces the current cover.')"
+								>
+									<input type="hidden" name="action" value="set_cover" />
+									<input type="hidden" name="photo_id" value={photo.id} />
+									<button class="link-btn" type="submit">Make cover</button>
+								</form>
+								<form method="POST" onsubmit="return confirm('Delete this photo?')">
+									<input type="hidden" name="action" value="delete_photo" />
+									<input type="hidden" name="photo_id" value={photo.id} />
+									<button class="link-btn danger" type="submit">Delete</button>
+								</form>
+							</div>
 						</div>
 					))
 				}
@@ -346,6 +415,12 @@ const { results: allPerformers } = await db
 		font-size: 0.8em;
 		color: rgb(var(--gray));
 		display: block;
+	}
+	.g-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 0 0.6em;
 	}
 	.link-btn {
 		background: none;

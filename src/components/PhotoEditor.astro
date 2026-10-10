@@ -3,7 +3,8 @@
 // residents' faces with cartoon stickers (privacy policy). Add `data-crop` to
 // any <input type="file"> to enable it; the value is the default crop shape
 // ("3/2", "1/1", "free", ...). Add `data-no-faces` to skip step 2 (e.g. for
-// performer headshots, who aren't residents). Everything happens in the browser and the
+// performer headshots, who aren't residents). Add `data-autosubmit` to submit the
+// input's form as soon as editing finishes. Everything happens in the browser and the
 // stickers are painted into the pixels, so the uploaded file never contains
 // the original faces. Server code is unchanged.
 ---
@@ -671,7 +672,44 @@
 			const dt = new DataTransfer();
 			result.forEach((f) => dt.items.add(f));
 			input.files = dt.files;
-			showPreviews(input, result);
+			if ("autosubmit" in input.dataset) input.form!.requestSubmit();
+			else showPreviews(input, result);
+		});
+	});
+
+	// Re-edit an already-uploaded image's stickers (no crop step):
+	// <button data-edit-faces="<image url>" data-target="<file input id>">. The
+	// result goes into that input and its form is submitted.
+	document.querySelectorAll<HTMLButtonElement>("[data-edit-faces]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const input = document.getElementById(btn.dataset.target!) as HTMLInputElement;
+			btn.disabled = true;
+			try {
+				const res = await fetch(btn.dataset.editFaces!);
+				if (!res.ok) throw new Error(`Couldn't load the photo (${res.status}).`);
+				const src = await res.blob();
+				const bitmap = await createImageBitmap(src);
+				const base = fitCanvas(bitmap, bitmap.width, bitmap.height);
+				bitmap.close();
+				const type = src.type === "image/png" || src.type === "image/webp" ? src.type : "image/jpeg";
+				count.textContent = "";
+				dialog.showModal();
+				const pending = facesStep(base, type);
+				title.textContent = "Edit stickers";
+				const blob = await pending;
+				dialog.close();
+				if (!blob) return;
+				const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[blob.type] ?? "jpg";
+				const dt = new DataTransfer();
+				dt.items.add(new File([blob], `photo.${ext}`, { type: blob.type, lastModified: Date.now() }));
+				input.files = dt.files;
+				input.form!.requestSubmit();
+			} catch (e) {
+				if (dialog.open) dialog.close();
+				alert(e instanceof Error ? e.message : "Couldn't edit this photo.");
+			} finally {
+				btn.disabled = false;
+			}
 		});
 	});
 </script>

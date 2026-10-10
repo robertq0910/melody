@@ -37,6 +37,26 @@ export async function uploadImage(
 	return key;
 }
 
+// Copies an existing R2 object to a fresh key under `prefix`, so the copy has its
+// own lifecycle (deleting one never breaks the other). Buffers the body for the
+// same platformProxy reason as src/pages/media/[...key].ts.
+export async function copyImage(
+	bucket: R2Bucket | undefined,
+	sourceKey: string,
+	prefix: string,
+): Promise<string> {
+	if (!bucket) throw new Error("Media storage is not available.");
+	const object = await bucket.get(sourceKey);
+	if (!object) throw new Error("That photo no longer exists.");
+	const contentType = object.httpMetadata?.contentType ?? "image/jpeg";
+	const ext = EXT[contentType] ?? sourceKey.split(".").pop() ?? "jpg";
+	const key = `${prefix}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+	await bucket.put(key, await object.arrayBuffer(), {
+		httpMetadata: { contentType },
+	});
+	return key;
+}
+
 // Best-effort delete of an R2 object (e.g. when a photo is removed or replaced).
 export async function deleteImage(
 	bucket: R2Bucket | undefined,
