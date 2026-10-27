@@ -3,6 +3,7 @@ import Admin from "../../layouts/Admin.astro";
 import {
 	getDb,
 	listHostingRequests,
+	countArchivedHostingRequests,
 	listVolunteerApplications,
 	listContactMessages,
 } from "../../lib/db";
@@ -17,19 +18,30 @@ const TABLES: Record<string, string> = {
 	contact: "contact_messages",
 };
 
+// ?archived=1 shows archived hosting requests instead of the active ones.
+const showArchived = Astro.url.searchParams.get("archived") === "1";
+const selfUrl = showArchived ? "/admin/requests?archived=1" : "/admin/requests";
+
 if (Astro.request.method === "POST") {
 	const form = await Astro.request.formData();
 	const kind = String(form.get("kind"));
 	const id = parseInt(String(form.get("id")), 10);
+	const archive = form.get("archive");
 	const status = String(form.get("status"));
 	const table = TABLES[kind];
-	if (table && Number.isFinite(id) && status) {
+	if (kind === "hosting" && archive !== null && Number.isFinite(id)) {
+		await db
+			.prepare("UPDATE hosting_requests SET archived = ? WHERE id = ?")
+			.bind(archive === "1" ? 1 : 0, id)
+			.run();
+	} else if (table && Number.isFinite(id) && status) {
 		await db.prepare(`UPDATE ${table} SET status = ? WHERE id = ?`).bind(status, id).run();
 	}
-	return Astro.redirect("/admin/requests");
+	return Astro.redirect(selfUrl);
 }
 
-const hosting = await listHostingRequests(db);
+const hosting = await listHostingRequests(db, showArchived);
+const archivedCount = await countArchivedHostingRequests(db);
 const volunteers = await listVolunteerApplications(db);
 const contacts = await listContactMessages(db);
 
@@ -44,10 +56,27 @@ function fmt(d: string) {
 
 <Admin title="Requests">
 	<div class="head-row">
-		<h1>Hosting Requests</h1>
+		<h1>{showArchived ? "Archived Hosting Requests" : "Hosting Requests"}</h1>
 		<a class="export" href="/admin/export/hosting.csv">⬇ Export CSV</a>
 	</div>
-	{hosting.length === 0 && <p class="muted">No hosting requests yet.</p>}
+	<p class="archive-toggle">
+		{
+			showArchived ? (
+				<a href="/admin/requests">← Back to active requests</a>
+			) : (
+				archivedCount > 0 && (
+					<a href="/admin/requests?archived=1">Show archived ({archivedCount})</a>
+				)
+			)
+		}
+	</p>
+	{
+		hosting.length === 0 && (
+			<p class="muted">
+				{showArchived ? "No archived hosting requests." : "No hosting requests yet."}
+			</p>
+		)
+	}
 	<div class="cards">
 		{
 			hosting.map((r) => (
@@ -77,6 +106,14 @@ function fmt(d: string) {
 							))}
 						</select>
 						<button class="btn btn-secondary btn-sm" type="submit">Update</button>
+					</form>
+					<form method="POST" class="archive-form">
+						<input type="hidden" name="kind" value="hosting" />
+						<input type="hidden" name="id" value={r.id} />
+						<input type="hidden" name="archive" value={r.archived ? "0" : "1"} />
+						<button class="link-btn" type="submit">
+							{r.archived ? "Unarchive" : "Archive"}
+						</button>
 					</form>
 				</div>
 			))
@@ -239,6 +276,27 @@ function fmt(d: string) {
 		padding: 0.35em 0.9em;
 		font-size: 0.85em;
 	}
+	.archive-toggle {
+		margin: 0 0 1em;
+		font-size: 0.9em;
+	}
+	.archive-form {
+		margin-top: 0.5em;
+		text-align: right;
+	}
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.link-btn:hover {
+		color: var(--accent);
+	}
 	select {
 		padding: 0.3em;
 		border-radius: 6px;
@@ -269,6 +327,9 @@ function fmt(d: string) {
 		.status-form .btn-sm {
 			min-height: 44px;
 			padding: 0 1.2em;
+		}
+		.link-btn {
+			min-height: 44px;
 		}
 	}
 </style>

@@ -39,6 +39,18 @@ if (Astro.request.method === "POST") {
 				.prepare("UPDATE performers SET published = 1 - published WHERE id = ?")
 				.bind(id)
 				.run();
+		} else if (action === "reorder") {
+			// Sent by the drag-to-reorder script as the full list of performer ids in display order.
+			const ids = String(form.get("order") ?? "")
+				.split(",")
+				.map((v) => parseInt(v, 10))
+				.filter(Number.isFinite);
+			if (ids.length > 0) {
+				await db.batch(
+					ids.map((id, i) => db.prepare("UPDATE performers SET sort_order = ? WHERE id = ?").bind(i, id)),
+				);
+			}
+			return new Response(null, { status: 204 });
 		} else if (action === "delete") {
 			const id = parseInt(String(form.get("id")), 10);
 			await db.prepare("DELETE FROM performers WHERE id = ?").bind(id).run();
@@ -52,6 +64,8 @@ if (Astro.request.method === "POST") {
 const { results: performers } = await db
 	.prepare("SELECT * FROM performers ORDER BY sort_order, name")
 	.all();
+// New performers go after the existing ones by default.
+const nextSortOrder = performers.reduce((max: number, p: any) => Math.max(max, p.sort_order + 1), 0);
 ---
 
 <Admin title="Performers">
@@ -60,11 +74,31 @@ const { results: performers } = await db
 
 	<div class="layout">
 		<section>
+			{
+				performers.length > 1 && (
+					<p class="muted reorder-hint">
+						Drag the ⠿ handle to change the order on the site.{" "}
+						<span class="reorder-status" aria-live="polite" />
+					</p>
+				)
+			}
 			<table class="list">
-				<tbody>
+				<tbody data-reorder>
 					{
 						performers.map((p: any) => (
-							<tr>
+							<tr data-id={p.id}>
+								<td class="handle-cell">
+									{performers.length > 1 && (
+										<button
+											class="handle"
+											type="button"
+											title="Drag to reorder (or use the arrow keys)"
+											aria-label={`Reorder ${p.name}`}
+										>
+											⠿
+										</button>
+									)}
+								</td>
 								<td>
 									<img class="thumb" src={mediaUrl(p.photo_key)} alt="" />
 								</td>
@@ -123,13 +157,33 @@ const { results: performers } = await db
 				</div>
 				<div class="field">
 					<label for="sort_order">Sort order</label>
-					<input id="sort_order" name="sort_order" type="number" value="0" />
+					<input id="sort_order" name="sort_order" type="number" value={nextSortOrder} />
 				</div>
 				<button class="btn btn-primary" type="submit">Add performer</button>
 			</form>
 		</aside>
 	</div>
 </Admin>
+
+<script>
+	import { makeSortable, saveOrder } from "../../scripts/sortable";
+
+	// Performer order is saved as soon as a drag ends.
+	const list = document.querySelector<HTMLElement>("[data-reorder]");
+	const status = document.querySelector<HTMLElement>(".reorder-status");
+	if (list && list.querySelector(".handle")) {
+		makeSortable(list, {
+			items: "tr[data-id]",
+			handle: ".handle",
+			onChange: (rows) =>
+				saveOrder(
+					"reorder",
+					rows.map((el) => el.dataset.id!),
+					status,
+				),
+		});
+	}
+</script>
 
 <style>
 	.layout {
@@ -149,6 +203,33 @@ const { results: performers } = await db
 		padding: 0.6em 0.8em;
 		border-bottom: 1px solid rgb(var(--gray-light));
 		vertical-align: middle;
+	}
+	.list td.handle-cell {
+		padding-right: 0;
+	}
+	.handle {
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 6px;
+		background: rgb(var(--gray-light));
+		color: rgb(var(--gray-dark));
+		font-size: 1.1em;
+		line-height: 1;
+		cursor: grab;
+		touch-action: none;
+	}
+	.list tr.dragging {
+		opacity: 0.5;
+		background: rgb(var(--gray-light));
+	}
+	.list tr.dragging,
+	.list tr.dragging * {
+		cursor: grabbing;
+	}
+	.reorder-hint {
+		font-size: 0.85em;
+		margin-top: 0;
 	}
 	.thumb {
 		width: 48px;
@@ -208,7 +289,7 @@ const { results: performers } = await db
 		}
 		.list tr {
 			display: grid;
-			grid-template-columns: auto 1fr auto;
+			grid-template-columns: auto auto 1fr auto;
 			align-items: center;
 			gap: 0.3em 0.8em;
 			padding: 0.8em 0.9em 0.3em;

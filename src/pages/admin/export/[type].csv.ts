@@ -18,6 +18,7 @@ const EXPORTS: Record<string, { table: string; columns: string[] }> = {
 			"preferred_date",
 			"message",
 			"status",
+			"archived",
 		],
 	},
 	volunteer: {

@@ -60,16 +60,17 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 				)
 				.run();
 
-			// Reset and re-link performers.
+			// Reset and re-link performers. Checkboxes arrive in their (dragged) on-page
+			// order, which becomes the line-up order.
 			await db.prepare("DELETE FROM performance_performers WHERE performance_id = ?").bind(id).run();
 			const performerIds = form.getAll("performers").map((v) => parseInt(String(v), 10));
-			for (const pid of performerIds) {
+			for (const [i, pid] of performerIds.entries()) {
 				if (Number.isFinite(pid)) {
 					await db
 						.prepare(
-							"INSERT OR IGNORE INTO performance_performers (performance_id, performer_id) VALUES (?, ?)",
+							"INSERT OR IGNORE INTO performance_performers (performance_id, performer_id, sort_order) VALUES (?, ?, ?)",
 						)
-						.bind(id, pid)
+						.bind(id, pid, i)
 						.run();
 				}
 			}
@@ -95,8 +96,8 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 			const cloneId = res.meta.last_row_id;
 			await db
 				.prepare(
-					`INSERT INTO performance_performers (performance_id, performer_id)
-					 SELECT ?, performer_id FROM performance_performers WHERE performance_id = ?`,
+					`INSERT INTO performance_performers (performance_id, performer_id, sort_order)
+					 SELECT ?, performer_id, sort_order FROM performance_performers WHERE performance_id = ?`,
 				)
 				.bind(cloneId, id)
 				.run();
@@ -148,6 +149,22 @@ if (Number.isFinite(id) && Astro.request.method === "POST") {
 			if (!newKey) throw new Error("No edited image was received.");
 			await db.prepare("UPDATE performance_photos SET photo_key = ? WHERE id = ?").bind(newKey, photoId).run();
 			await deleteImage(bucket, photo.photo_key);
+		} else if (action === "reorder_photos") {
+			// Sent by the drag-to-reorder script as the full list of photo ids in display order.
+			const ids = String(form.get("order") ?? "")
+				.split(",")
+				.map((v) => parseInt(v, 10))
+				.filter(Number.isFinite);
+			if (ids.length > 0) {
+				await db.batch(
+					ids.map((photoId, i) =>
+						db
+							.prepare("UPDATE performance_photos SET sort_order = ? WHERE id = ? AND performance_id = ?")
+							.bind(i, photoId, id),
+					),
+				);
+			}
+			return new Response(null, { status: 204 });
 		} else if (action === "delete_photo") {
 			const photoId = parseInt(String(form.get("photo_id")), 10);
 			const photo = await db
@@ -170,11 +187,19 @@ if (!performance) {
 	return new Response("Performance not found", { status: 404 });
 }
 
-const linkedIds = new Set(await performerIdsForPerformance(db, id));
+const linkedOrder = await performerIdsForPerformance(db, id);
+const linkedIds = new Set(linkedOrder);
 const photos = await listPerformancePhotos(db, id);
+// New uploads go after the existing photos by default.
+const nextSortOrder = photos.reduce((max, p) => Math.max(max, p.sort_order + 1), 0);
 const { results: allPerformers } = await db
 	.prepare("SELECT id, name FROM performers ORDER BY sort_order, name")
-	.all();
+	.all<{ id: number; name: string }>();
+// Line-up first (in its saved order), then everyone else in the global order.
+const performerChoices = [
+	...linkedOrder.flatMap((pid) => allPerformers.filter((p) => p.id === pid)),
+	...allPerformers.filter((p) => !linkedIds.has(p.id)),
+];
 ---
 
 <Admin title={`Edit ${performance.title}`}>
@@ -256,17 +281,26 @@ const { results: allPerformers } = await db
 				<input id="cover" name="cover" type="file" accept="image/*" data-crop="3/2" />
 			</div>
 			<div class="field">
-				<label for="performers">Performers</label>
-				<select id="performers" name="performers" multiple size="6">
+				<label>Performers</label>
+				<ul class="lineup" data-lineup>
 					{
-						allPerformers.map((p: any) => (
-							<option value={p.id} selected={linkedIds.has(p.id)}>
-								{p.name}
-							</option>
+						performerChoices.map((p) => (
+							<li>
+								<button class="lineup-handle" type="button" aria-label={`Reorder ${p.name}`}>
+									⠿
+								</button>
+								<label class="inline">
+									<input type="checkbox" name="performers" value={p.id} checked={linkedIds.has(p.id)} />{" "}
+									{p.name}
+								</label>
+							</li>
 						))
 					}
-				</select>
-				<span class="hint">Ctrl/Cmd-click to select several (on a phone, just tap each name).</span>
+				</ul>
+				<span class="hint">
+					Tick who played. Drag ⠿ (or use the arrow keys on it) to set the order shown on the site,
+					then Save changes.
+				</span>
 			</div>
 			<div class="field">
 				<label class="inline">
@@ -279,11 +313,31 @@ const { results: allPerformers } = await db
 
 		<aside class="gallery-admin">
 			<h2>Photo gallery</h2>
-			<div class="gallery">
+			{
+				photos.length > 1 && (
+					<p class="muted reorder-hint">
+						Drag the ⠿ handle (or a photo, with a mouse) to change the order.{" "}
+						<span class="reorder-status" aria-live="polite" />
+					</p>
+				)
+			}
+			<div class="gallery" data-reorder>
 				{
 					photos.map((photo) => (
-						<div class="g-item">
-							<img src={mediaUrl(photo.photo_key)} alt={photo.caption ?? ""} />
+						<div class="g-item" data-photo-id={photo.id}>
+							<div class="g-thumb">
+								<img src={mediaUrl(photo.photo_key)} alt={photo.caption ?? ""} draggable="false" />
+								{photos.length > 1 && (
+									<button
+										class="g-handle"
+										type="button"
+										title="Drag to reorder (or use the arrow keys)"
+										aria-label="Reorder photo"
+									>
+										⠿
+									</button>
+								)}
+							</div>
 							{photo.caption && <span class="cap">{photo.caption}</span>}
 							<div class="g-actions">
 								<button
@@ -349,7 +403,7 @@ const { results: allPerformers } = await db
 				</div>
 				<div class="field">
 					<label for="sort_order">Sort order</label>
-					<input id="sort_order" name="sort_order" type="number" value="0" />
+					<input id="sort_order" name="sort_order" type="number" value={nextSortOrder} />
 					<small class="muted">Photos in one upload are numbered up from this, in the order selected.</small>
 				</div>
 				<button class="btn btn-secondary" type="submit">Upload photos</button>
@@ -357,6 +411,31 @@ const { results: allPerformers } = await db
 		</aside>
 	</div>
 </Admin>
+
+<script>
+	import { makeSortable, saveOrder } from "../../../scripts/sortable";
+
+	// Gallery order is saved as soon as a drag ends.
+	const gallery = document.querySelector<HTMLElement>("[data-reorder]");
+	const status = document.querySelector<HTMLElement>(".reorder-status");
+	if (gallery && gallery.querySelector(".g-handle")) {
+		makeSortable(gallery, {
+			items: ".g-item",
+			handle: ".g-handle",
+			mouseArea: ".g-thumb img",
+			onChange: (items) =>
+				saveOrder(
+					"reorder_photos",
+					items.map((el) => el.dataset.photoId!),
+					status,
+				),
+		});
+	}
+
+	// Line-up order is just the checkbox order, submitted with "Save changes".
+	const lineup = document.querySelector<HTMLElement>("[data-lineup]");
+	if (lineup) makeSortable(lineup, { items: "li", handle: ".lineup-handle", onChange: () => {} });
+</script>
 
 <style>
 	.title-row {
@@ -404,6 +483,75 @@ const { results: allPerformers } = await db
 		grid-template-columns: 1fr 1fr;
 		gap: 0.8em;
 		margin-bottom: 1em;
+	}
+	.lineup {
+		list-style: none;
+		margin: 0;
+		padding: 0.3em;
+		max-height: 320px;
+		overflow-y: auto;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 8px;
+		background: white;
+	}
+	.lineup li {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		padding: 0.2em 0.3em;
+		border-radius: 6px;
+	}
+	.lineup li.dragging {
+		opacity: 0.5;
+		background: rgb(var(--gray-light));
+	}
+	.lineup li.dragging,
+	.lineup li.dragging * {
+		cursor: grabbing;
+	}
+	.lineup-handle {
+		flex: none;
+		width: 30px;
+		height: 30px;
+		border: none;
+		border-radius: 6px;
+		background: rgb(var(--gray-light));
+		color: rgb(var(--gray-dark));
+		line-height: 1;
+		cursor: grab;
+		touch-action: none;
+	}
+	.g-thumb {
+		position: relative;
+	}
+	.g-thumb img {
+		cursor: grab;
+	}
+	.g-handle {
+		position: absolute;
+		top: 4px;
+		left: 4px;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 6px;
+		background: rgba(0, 0, 0, 0.55);
+		color: white;
+		font-size: 1.1em;
+		line-height: 1;
+		cursor: grab;
+		touch-action: none;
+	}
+	.g-item.dragging {
+		opacity: 0.5;
+	}
+	.g-item.dragging,
+	.g-item.dragging * {
+		cursor: grabbing;
+	}
+	.reorder-hint {
+		font-size: 0.85em;
+		margin-top: -0.4em;
 	}
 	.g-item img {
 		width: 100%;

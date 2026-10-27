@@ -22,10 +22,11 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 		position: sticky;
 		top: 0;
 		z-index: 50;
-		background: rgba(255, 255, 255, 0.78);
+		background: rgba(250, 246, 236, 0.88);
 		backdrop-filter: saturate(180%) blur(12px);
 		-webkit-backdrop-filter: saturate(180%) blur(12px);
 		border-bottom: 1px solid rgba(var(--gray-light), 0.9);
+		box-shadow: inset 0 3px 0 var(--gold);
 	}
 	nav {
 		display: flex;
@@ -40,9 +41,9 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 		align-items: center;
 		gap: 0.5em;
 		font-family: var(--font-display);
-		font-weight: 800;
-		font-size: 1.2em;
-		letter-spacing: -0.02em;
+		font-weight: 700;
+		font-size: 1.3em;
+		letter-spacing: -0.01em;
 		color: rgb(var(--black));
 		text-decoration: none;
 		padding: 0.7em 0;
@@ -54,15 +55,14 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 		height: 1.6em;
 		border-radius: 50%;
 		background: var(--brand-grad);
-		color: white;
+		color: var(--gold);
 		font-size: 0.85em;
-		box-shadow: 0 4px 10px rgba(124, 58, 237, 0.35);
+		box-shadow:
+			0 0 0 2px var(--gold),
+			0 4px 10px rgba(var(--accent-rgb), 0.3);
 	}
 	.logo-text {
-		background: var(--brand-grad);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
+		color: var(--accent-dark);
 	}
 	.internal-links {
 		display: flex;
@@ -87,8 +87,8 @@ import { SITE_TITLE, NAV_LINKS } from "../consts";
 	}
 	nav :global(a.active) {
 		text-decoration: none;
-		background: var(--brand-grad-soft);
-		color: var(--accent-dark);
+		background: var(--accent-dark);
+		color: var(--cream);
 	}
 	.menu-toggle {
 		display: none;

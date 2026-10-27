@@ -20,9 +20,9 @@ const today = new Date();
 	footer {
 		margin-top: 3em;
 		padding: 3em 1em 4em 1em;
-		background: linear-gradient(180deg, transparent, rgba(var(--gray-light), 0.5));
-		border-top: 1px solid rgba(var(--gray-light), 0.9);
-		color: rgb(var(--gray));
+		background: var(--accent-dark);
+		border-top: 4px solid var(--gold);
+		color: rgba(252, 245, 227, 0.75);
 		text-align: center;
 	}
 	.footer-brand {
@@ -30,9 +30,9 @@ const today = new Date();
 		align-items: center;
 		gap: 0.5em;
 		font-family: var(--font-display);
-		font-weight: 800;
-		font-size: 1.15em;
-		letter-spacing: -0.02em;
+		font-weight: 700;
+		font-size: 1.25em;
+		letter-spacing: -0.01em;
 		text-decoration: none;
 		margin-bottom: 1.1em;
 	}
@@ -43,15 +43,12 @@ const today = new Date();
 		height: 1.6em;
 		border-radius: 50%;
 		background: var(--brand-grad);
-		color: white;
+		color: var(--gold);
 		font-size: 0.85em;
-		box-shadow: 0 4px 10px rgba(124, 58, 237, 0.35);
+		box-shadow: 0 0 0 2px var(--gold);
 	}
 	.logo-text {
-		background: var(--brand-grad);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
+		color: var(--cream);
 	}
 	.footer-links {
 		display: flex;
@@ -61,12 +58,12 @@ const today = new Date();
 		margin-bottom: 1em;
 	}
 	.footer-links a {
-		color: rgb(var(--gray-dark));
+		color: var(--cream);
 		text-decoration: none;
 		transition: color 0.18s var(--ease);
 	}
 	.footer-links a:hover {
-		color: var(--accent);
+		color: var(--gold);
 	}
 	.copy {
 		font-size: 0.9em;

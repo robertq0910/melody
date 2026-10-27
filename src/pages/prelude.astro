@@ -1,0 +1,74 @@
+---
+import Base from "../layouts/Base.astro";
+import CoverImage from "../components/CoverImage.astro";
+import { getDb, listPreludePerformances } from "../lib/db";
+import type { Performance } from "../lib/db";
+import { mediaUrl } from "../lib/media";
+
+export const prerender = false;
+
+const db = getDb(Astro.locals);
+const performances = await listPreludePerformances(db);
+---
+
+<Base wide title="The Prelude">
+	<h1>The Prelude</h1>
+	<div class="prose-text">
+		<h2>Where It All Began</h2>
+		<p>
+			Harmonic Bridges began with one student, one piano, and a simple belief: music can bring
+			people together in meaningful ways.
+		</p>
+		<p>
+			In February 2026, Emily Qi began performing monthly solo piano concerts at Aegis Living
+			Marymoor. What started as an individual effort to share music with senior residents gradually
+			grew into a deeper appreciation of the connections that music can create across generations.
+			Through these performances, Emily discovered that music could be more than a personal passion
+			— it could be a meaningful way to serve her community.
+		</p>
+		<p>
+			As this vision grew, Emily, David Zhang, and William Feng came together around a shared belief
+			in the power of music to connect people and enrich their community. Each brought their own
+			commitment, ideas, and musical contributions to the effort. Through their collaboration, they
+			began building Harmonic Bridges as a student-led initiative dedicated to sharing the joy of
+			live music with senior living communities and local audiences.
+		</p>
+		<p>
+			What began with one student's initiative grew into a shared vision — and a collective effort to
+			build bridges through music.
+		</p>
+		<p>
+			<strong>
+				The Prelude honors the early performances that inspired this journey and the collaborative
+				spirit that helped transform an individual effort into a shared mission.
+			</strong>
+		</p>
+	</div>
+
+	<div class="grid">
+		{
+			performances.map((p: Performance) => (
+				<a class="card" href={`/prelude/${p.slug}`}>
+					<CoverImage src={mediaUrl(p.cover_key)} date={p.event_date} />
+					<div class="card-body">
+						<h3>{p.title}</h3>
+						<p class="muted">{[p.venue, p.location].filter(Boolean).join(", ")}</p>
+						{p.summary && <p>{p.summary}</p>}
+					</div>
+				</a>
+			))
+		}
+	</div>
+	{performances.length === 0 && <p class="muted">No performances yet.</p>}
+</Base>
+
+<style>
+	.prose-text {
+		font-size: 1.1em;
+		max-width: 65ch;
+		margin-bottom: 2em;
+	}
+	.card-body h3 {
+		margin: 0.2em 0;
+	}
+</style>

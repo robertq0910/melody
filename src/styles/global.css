@@ -5,34 +5,39 @@
  */
 
 :root {
-	/* Brand palette — warm violet + rose, tuned for "Melody for Medicine". */
-	--accent: #6d28d9;
-	--accent-dark: #581c87;
-	--accent-2: #ec4899;
-	--brand-grad: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
-	--brand-grad-soft: linear-gradient(135deg, #ede9fe 0%, #fce7f3 100%);
+	/* Brand palette — "porch concert": olive green, honey gold, brick red, cream program paper.
+	   Classic enough for senior audiences, warm and lively for a teen-founded group. */
+	--accent: #4d5c2c; /* olive green — links, primary actions */
+	--accent-dark: #343f1c;
+	--accent-2: #a8432a; /* brick red — hover, highlights */
+	--gold: #e0a83a; /* honey gold — decorative only (low contrast on cream) */
+	--cream: #fcf5e3; /* text on green */
+	--accent-rgb: 77, 92, 44;
+	--brand-grad: linear-gradient(135deg, #343f1c 0%, #66763c 100%);
+	--brand-grad-soft: linear-gradient(160deg, #fcf5e3 0%, #f3e7c9 100%);
 
 	/* Color triplets (R, G, B) — used with rgb()/rgba() across components. */
-	--black: 26, 22, 46;
-	--gray: 113, 110, 138;
-	--gray-light: 234, 231, 245;
-	--gray-dark: 67, 62, 94;
-	--gray-gradient: rgba(var(--gray-light), 55%), #faf8ff;
+	--black: 27, 33, 48;
+	--gray: 105, 98, 90;
+	--gray-light: 234, 224, 208;
+	--gray-dark: 58, 54, 50;
+	--gray-gradient: rgba(var(--gray-light), 55%), #faf6ec;
 
-	--surface: #ffffff;
-	--bg: #faf8ff;
+	--surface: #fffdf9;
+	--bg: #faf6ec;
 
 	/* Design tokens */
-	--radius-sm: 12px;
-	--radius: 18px;
-	--radius-lg: 28px;
-	--font-display: "Plus Jakarta Sans", "Nunito", "Atkinson", system-ui, sans-serif;
-	--font-body: "Nunito", "Atkinson", system-ui, sans-serif;
+	--radius-sm: 10px;
+	--radius: 14px;
+	--radius-lg: 22px;
+	--font-display: "Fraunces", Georgia, "Times New Roman", serif;
+	/* Atkinson Hyperlegible was designed for low-vision readers — kind to older eyes. */
+	--font-body: "Atkinson", system-ui, sans-serif;
 	--ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-	--shadow-sm: 0 1px 2px rgba(26, 22, 46, 0.06), 0 2px 8px rgba(26, 22, 46, 0.05);
-	--shadow: 0 4px 12px rgba(26, 22, 46, 0.08), 0 12px 28px rgba(26, 22, 46, 0.07);
-	--shadow-lg: 0 12px 28px rgba(124, 58, 237, 0.12), 0 24px 48px rgba(219, 39, 119, 0.1);
+	--shadow-sm: 0 1px 2px rgba(27, 33, 48, 0.06), 0 2px 8px rgba(27, 33, 48, 0.05);
+	--shadow: 0 4px 12px rgba(27, 33, 48, 0.08), 0 12px 28px rgba(27, 33, 48, 0.07);
+	--shadow-lg: 0 12px 28px rgba(52, 63, 28, 0.18), 0 24px 48px rgba(168, 67, 42, 0.08);
 	--box-shadow: var(--shadow);
 }
 @font-face {
@@ -55,10 +60,6 @@ body {
 	padding: 0;
 	text-align: left;
 	background-color: var(--bg);
-	background-image:
-		radial-gradient(60% 50% at 85% -10%, rgba(236, 72, 153, 0.1), transparent 70%),
-		radial-gradient(50% 40% at 0% 0%, rgba(124, 58, 237, 0.12), transparent 70%);
-	background-repeat: no-repeat;
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	color: rgb(var(--gray-dark));
@@ -67,6 +68,25 @@ body {
 	line-height: 1.7;
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
+}
+/* Site-wide sheet-music backdrop, washed out heavily with the cream page tone
+   so the high-contrast notation stays a faint texture behind content. */
+body::before,
+body::after {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+}
+body::before {
+	background: url("/images/bg-sheet-music.jpg") center / cover no-repeat;
+}
+body::after {
+	background:
+		radial-gradient(60% 50% at 85% -10%, rgba(224, 168, 58, 0.14), transparent 70%),
+		radial-gradient(50% 40% at 0% 0%, rgba(var(--accent-rgb), 0.07), transparent 70%),
+		rgba(250, 246, 236, 0.9);
 }
 main {
 	width: 720px;
@@ -84,8 +104,8 @@ h6 {
 	color: rgb(var(--black));
 	line-height: 1.15;
 	font-family: var(--font-display);
-	letter-spacing: -0.02em;
-	font-weight: 800;
+	letter-spacing: -0.01em;
+	font-weight: 650;
 }
 h1 {
 	font-size: clamp(2.1rem, 1.5rem + 2.8vw, 3.1rem);
@@ -148,7 +168,9 @@ pre > code {
 	all: unset;
 }
 blockquote {
-	border-left: 4px solid var(--accent);
+	border-left: 4px solid var(--gold);
+	font-family: var(--font-display);
+	font-style: italic;
 	padding: 0 0 0 20px;
 	margin: 0px;
 	font-size: 1.333em;
@@ -178,8 +200,8 @@ hr {
 	border-radius: 999px;
 	text-decoration: none;
 	font-weight: 700;
-	font-family: var(--font-display);
-	letter-spacing: -0.01em;
+	font-family: var(--font-body);
+	letter-spacing: 0.01em;
 	border: 1px solid transparent;
 	font-size: 1em;
 	cursor: pointer;
@@ -197,11 +219,11 @@ hr {
 .btn-primary {
 	background: var(--brand-grad);
 	color: white;
-	box-shadow: 0 6px 16px rgba(124, 58, 237, 0.32);
+	box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.28);
 }
 .btn-primary:hover {
 	color: white;
-	box-shadow: 0 10px 24px rgba(124, 58, 237, 0.4);
+	box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.36);
 }
 .btn-secondary {
 	background: var(--surface);
@@ -233,7 +255,7 @@ hr {
 a.card:hover {
 	transform: translateY(-4px);
 	box-shadow: var(--shadow);
-	border-color: rgba(124, 58, 237, 0.25);
+	border-color: rgba(224, 168, 58, 0.6);
 }
 .card img {
 	width: 100%;
@@ -279,7 +301,7 @@ a.card:hover {
 .field select:focus {
 	outline: none;
 	border-color: var(--accent);
-	box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+	box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
 .field .hint {
 	font-size: 0.85em;

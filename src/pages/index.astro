@@ -7,6 +7,7 @@ import {
 	listUpcomingPerformances,
 	listPastPerformances,
 	listPerformers,
+	isPrelude,
 } from "../lib/db";
 import { mediaUrl } from "../lib/media";
 
@@ -14,7 +15,7 @@ export const prerender = false;
 
 const db = getDb(Astro.locals);
 const upcoming = (await listUpcomingPerformances(db)).slice(0, 3);
-const performances = (await listPastPerformances(db)).slice(0, 3);
+const performances = (await listPastPerformances(db)).filter((p) => !isPrelude(p)).slice(0, 3);
 const performers = (await listPerformers(db)).slice(0, 4);
 
 function fmtDate(d: string | null) {
@@ -116,20 +117,29 @@ function fmtDate(d: string | null) {
 		padding: 3.5em 1.5em 3.5em;
 		margin-bottom: 1em;
 		border-radius: var(--radius-lg);
-		background: var(--brand-grad-soft);
-		border: 1px solid rgba(124, 58, 237, 0.12);
+		/* Faint five-line music staff behind the hero copy. */
+		background:
+			repeating-linear-gradient(
+					180deg,
+					transparent 0 22px,
+					rgba(224, 168, 58, 0.22) 22px 23px
+				)
+				center / 100% 115px no-repeat,
+			var(--brand-grad-soft);
+		border: 1px solid rgba(224, 168, 58, 0.35);
 		overflow: hidden;
 	}
 	.eyebrow {
 		display: inline-block;
 		padding: 0.4em 1em;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.7);
-		border: 1px solid rgba(124, 58, 237, 0.18);
+		background: var(--surface);
+		border: 1px solid rgba(224, 168, 58, 0.6);
 		color: var(--accent-dark);
 		font-weight: 700;
 		font-size: 0.8em;
-		letter-spacing: 0.01em;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 		margin-bottom: 1em;
 	}
 	.hero h1 {
@@ -138,10 +148,9 @@ function fmtDate(d: string | null) {
 		margin: 0 auto 0.3em;
 	}
 	.grad {
-		background: var(--brand-grad);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
+		font-style: italic;
+		font-weight: 500;
+		color: var(--accent-2);
 	}
 	.lede {
 		font-size: 1.2em;
@@ -178,19 +187,20 @@ function fmtDate(d: string | null) {
 		border-radius: var(--radius-lg);
 		padding: 3em 1.5em;
 		margin-top: 3.5em;
-		color: white;
+		color: var(--cream);
+		border-top: 4px solid var(--gold);
 		box-shadow: var(--shadow-lg);
 	}
 	.band :global(h2) {
-		color: white;
+		color: var(--cream);
 	}
 	.band p {
 		max-width: 46ch;
 		margin: 0.5em auto 1.5em;
-		color: rgba(255, 255, 255, 0.9);
+		color: rgba(252, 245, 227, 0.9);
 	}
 	.band .btn-primary {
-		background: white;
+		background: var(--gold);
 		color: var(--accent-dark);
 		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 	}
@@ -209,7 +219,7 @@ function fmtDate(d: string | null) {
 		box-shadow: 0 2px 8px rgba(var(--gray), 18%);
 	}
 	.event-list li {
-		background: white;
+		background: var(--surface);
 		border-bottom: 1px solid rgb(var(--gray-light));
 	}
 	.event-list li:last-child {
@@ -228,8 +238,9 @@ function fmtDate(d: string | null) {
 	}
 	.event-list .date {
 		flex: 0 0 11em;
-		font-weight: 700;
-		color: var(--accent);
+		font-family: var(--font-display);
+		font-weight: 650;
+		color: var(--accent-2);
 	}
 	.event-list .what {
 		display: flex;

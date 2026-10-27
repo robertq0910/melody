@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import PerformanceMap from "../../components/PerformanceMap.astro";
 import CoverImage from "../../components/CoverImage.astro";
-import { getDb, listUpcomingPerformances, listPastPerformances } from "../../lib/db";
+import { getDb, listUpcomingPerformances, listPastPerformances, isPrelude } from "../../lib/db";
 import type { Performance } from "../../lib/db";
 import { mediaUrl } from "../../lib/media";
 
@@ -10,7 +10,7 @@ export const prerender = false;
 
 const db = getDb(Astro.locals);
 const upcoming = await listUpcomingPerformances(db);
-const past = await listPastPerformances(db);
+const past = (await listPastPerformances(db)).filter((p) => !isPrelude(p));
 ---
 
 <Base wide title="Performances">

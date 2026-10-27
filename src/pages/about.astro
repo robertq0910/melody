@@ -1,44 +1,87 @@
 ---
 import Base from "../layouts/Base.astro";
-import { getDb, listTeam } from "../lib/db";
-import { mediaUrl } from "../lib/media";
-
-export const prerender = false;
-
-const db = getDb(Astro.locals);
-const team = await listTeam(db);
 ---
 
 <Base wide title="About Us">
 	<h1>About Us</h1>
 	<div class="prose-text">
+		<h2>Who We Are</h2>
 		<p>
-			Melody for Medicine is a student-run group of teen musicians who bring live performances to
-			senior living communities, care homes, and local events. What started as a few friends
-			playing at a single retirement home has grown into a roster of performers playing across the
-			area.
+			Harmonic Bridges is a student-led organization dedicated to empowering young people to
+			develop leadership skills, foster innovation, and make a meaningful impact through community
+			service across King County, including Seattle, the Eastside, and North and South King County.
 		</p>
 		<p>
-			Our mission is simple: share the joy of live music with audiences who don't often get to
-			experience it, while giving young musicians a meaningful reason to keep playing. Every
-			performance is free for the communities we visit.
+			Our three founders represent three different high schools across the county, providing a
+			strong foundation for bringing together students from diverse backgrounds who share a
+			commitment to service and community engagement. As passionate musicians and accomplished
+			pianists, our founders aim to create music-centered outreach and educational opportunities
+			that bridge generations, strengthen communities, and inspire lasting positive change.
 		</p>
-	</div>
+		<p>
+			Our primary initiative is to organize concerts at senior centers throughout King County,
+			bringing joy, comfort, and connection to seniors through music. We also plan to offer
+			interactive music activities for seniors to encourage their lifelong learning, cognitive
+			engagement, and social connection. Additionally, we aspire to partner with elementary
+			schools and King County libraries to provide music enrichment opportunities for children who
+			have limited access to music education. By expanding access to musical learning, we aim to
+			promote educational equity, nurture young talents, and foster inclusion.
+		</p>
+		<p>
+			Through these initiatives, we hope to make music a bridge between generations and a source
+			of inspiration, connection, and opportunity for people of all ages. We welcome young leaders
+			who share our passion for music, service, and community building to join us in bringing
+			these initiatives to life and creating a more connected, inclusive, and vibrant King County.
+		</p>
 
-	<h2>Our Team</h2>
-	<div class="grid">
-		{
-			team.map((member) => (
-				<div class="card">
-					{member.photo_key && <img src={mediaUrl(member.photo_key)} alt={member.name} />}
-					<div class="card-body">
-						<h3>{member.name}</h3>
-						{member.role && <p class="muted role">{member.role}</p>}
-						{member.bio && <p>{member.bio}</p>}
-					</div>
-				</div>
-			))
-		}
+		<h2>Our Mission</h2>
+		<p>Our mission is to build bridges between generations and communities through live music.</p>
+		<p>We strive to:</p>
+		<ul>
+			<li>
+				<strong>Connect through music</strong> by bringing live performances to senior living
+				communities and local audiences.
+			</li>
+			<li>
+				<strong>Share music with purpose</strong> by using our musical abilities to create
+				meaningful experiences for others.
+			</li>
+			<li>
+				<strong>Grow through collaboration</strong> by bringing student musicians together around a
+				shared commitment to community service.
+			</li>
+			<li>
+				<strong>Make a lasting difference</strong> by developing a sustainable initiative that can
+				reach more people and create more opportunities for connection.
+			</li>
+		</ul>
+
+		<h2>Our Founding Team</h2>
+		<p>
+			Harmonic Bridges was built through the shared efforts of three student musicians, each
+			contributing to a common vision.
+		</p>
+		<ul class="founders">
+			<li>Emily Qi</li>
+			<li>David Zhang</li>
+			<li>William Feng</li>
+		</ul>
+		<p class="pending">Profiles to be added.</p>
+
+		<h2>Looking Ahead</h2>
+		<p>
+			Harmonic Bridges is built on a simple idea: meaningful change can begin with a small act of
+			sharing.
+		</p>
+		<p>
+			What began with solo piano performances has grown into a shared effort to bring student
+			musicians and community members together. As we continue this journey, we hope to expand our
+			reach, welcome more opportunities for collaboration, and create more moments in which music
+			helps people feel connected, valued, and inspired.
+		</p>
+		<p class="tagline">
+			One shared passion. Three founding musicians. A growing community connected through music.
+		</p>
 	</div>
 
 	<section class="band">
@@ -60,12 +103,24 @@ const team = await listTeam(db);
 		max-width: 65ch;
 		margin-bottom: 2em;
 	}
-	.role {
-		font-weight: 700;
-		color: var(--accent);
+	.prose-text h2 {
+		margin-top: 1.6em;
 	}
-	.card-body h3 {
-		margin: 0 0 0.1em;
+	.prose-text li {
+		margin-bottom: 0.5em;
+	}
+	.founders li {
+		font-weight: 600;
+	}
+	.pending {
+		font-style: italic;
+		opacity: 0.7;
+	}
+	.tagline {
+		font-style: italic;
+		font-weight: 600;
+		color: var(--accent-dark);
+		margin-top: 1.5em;
 	}
 	.band {
 		text-align: center;
@@ -73,19 +128,20 @@ const team = await listTeam(db);
 		border-radius: var(--radius-lg);
 		padding: 3em 1.5em;
 		margin-top: 3.5em;
-		color: white;
+		color: var(--cream);
+		border-top: 4px solid var(--gold);
 		box-shadow: var(--shadow-lg);
 	}
 	.band :global(h2) {
-		color: white;
+		color: var(--cream);
 	}
 	.band p {
 		max-width: 50ch;
 		margin: 0.5em auto 1.5em;
-		color: rgba(255, 255, 255, 0.9);
+		color: rgba(252, 245, 227, 0.9);
 	}
 	.band .btn-primary {
-		background: white;
+		background: var(--gold);
 		color: var(--accent-dark);
 		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 	}
@@ -94,12 +150,12 @@ const team = await listTeam(db);
 	}
 	.band .btn-secondary {
 		background: rgba(255, 255, 255, 0.12);
-		color: white;
-		border-color: rgba(255, 255, 255, 0.5);
+		color: var(--cream);
+		border-color: rgba(252, 245, 227, 0.5);
 	}
 	.band .btn-secondary:hover {
-		color: white;
-		border-color: white;
+		color: var(--gold);
+		border-color: var(--gold);
 	}
 	.cta-row {
 		display: flex;

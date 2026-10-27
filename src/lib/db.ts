@@ -47,6 +47,7 @@ export interface HostingRequest {
 	preferred_date: string | null;
 	message: string | null;
 	status: string;
+	archived: number; // 0 = active, 1 = archived (hidden from the default admin list)
 	created_at: string;
 }
 
@@ -136,6 +137,27 @@ export async function listPastPerformances(db: D1Database): Promise<Performance[
 	return results ?? [];
 }
 
+// "The Prelude" = everything dated September 2026 or earlier. Shown only on
+// /prelude (and /prelude/[slug]); kept off the home page and /performances.
+export const PRELUDE_END = "2026-09-30";
+
+export function isPrelude(p: Pick<Performance, "event_date">): boolean {
+	const d = p.event_date?.slice(0, 10);
+	return !!d && d <= PRELUDE_END;
+}
+
+export async function listPreludePerformances(db: D1Database): Promise<Performance[]> {
+	const { results } = await db
+		.prepare(
+			`SELECT * FROM performances
+			 WHERE published = 1 AND event_date IS NOT NULL AND date(event_date) <= ?
+			 ORDER BY date(event_date) ASC`,
+		)
+		.bind(PRELUDE_END)
+		.all<Performance>();
+	return results ?? [];
+}
+
 export async function getPerformanceBySlug(
 	db: D1Database,
 	slug: string,
@@ -181,7 +203,12 @@ export async function performerIdsForPerformance(
 	performanceId: number,
 ): Promise<number[]> {
 	const { results } = await db
-		.prepare("SELECT performer_id FROM performance_performers WHERE performance_id = ?")
+		.prepare(
+			`SELECT pp.performer_id FROM performance_performers pp
+			 JOIN performers p ON p.id = pp.performer_id
+			 WHERE pp.performance_id = ?
+			 ORDER BY pp.sort_order, p.sort_order, p.name`,
+		)
 		.bind(performanceId)
 		.all<{ performer_id: number }>();
 	return (results ?? []).map((r) => r.performer_id);
@@ -209,7 +236,7 @@ export async function performersForPerformance(
 			`SELECT p.* FROM performers p
 			 JOIN performance_performers pp ON pp.performer_id = p.id
 			 WHERE pp.performance_id = ? AND p.published = 1
-			 ORDER BY p.sort_order, p.name`,
+			 ORDER BY pp.sort_order, p.sort_order, p.name`,
 		)
 		.bind(performanceId)
 		.all<Performer>();
@@ -225,11 +252,22 @@ export async function listTeam(db: D1Database): Promise<TeamMember[]> {
 
 // ---- Admin reads --------------------------------------------------------
 
-export async function listHostingRequests(db: D1Database): Promise<HostingRequest[]> {
+export async function listHostingRequests(
+	db: D1Database,
+	archived = false,
+): Promise<HostingRequest[]> {
 	const { results } = await db
-		.prepare("SELECT * FROM hosting_requests ORDER BY created_at DESC")
+		.prepare("SELECT * FROM hosting_requests WHERE archived = ? ORDER BY created_at DESC")
+		.bind(archived ? 1 : 0)
 		.all<HostingRequest>();
 	return results ?? [];
+}
+
+export async function countArchivedHostingRequests(db: D1Database): Promise<number> {
+	const row = await db
+		.prepare("SELECT COUNT(*) AS n FROM hosting_requests WHERE archived = 1")
+		.first<{ n: number }>();
+	return row?.n ?? 0;
 }
 
 export async function listVolunteerApplications(
@@ -252,7 +290,7 @@ export async function countNew(
 	db: D1Database,
 ): Promise<{ hosting: number; volunteer: number; contact: number }> {
 	const hosting = await db
-		.prepare("SELECT COUNT(*) AS n FROM hosting_requests WHERE status = 'new'")
+		.prepare("SELECT COUNT(*) AS n FROM hosting_requests WHERE status = 'new' AND archived = 0")
 		.first<{ n: number }>();
 	const volunteer = await db
 		.prepare("SELECT COUNT(*) AS n FROM volunteer_applications WHERE status = 'new'")

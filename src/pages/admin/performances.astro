@@ -38,13 +38,13 @@ if (Astro.request.method === "POST") {
 				.run();
 			const performanceId = res.meta.last_row_id;
 			const performerIds = form.getAll("performers").map((v) => parseInt(String(v), 10));
-			for (const pid of performerIds) {
+			for (const [i, pid] of performerIds.entries()) {
 				if (Number.isFinite(pid)) {
 					await db
 						.prepare(
-							"INSERT OR IGNORE INTO performance_performers (performance_id, performer_id) VALUES (?, ?)",
+							"INSERT OR IGNORE INTO performance_performers (performance_id, performer_id, sort_order) VALUES (?, ?, ?)",
 						)
-						.bind(performanceId, pid)
+						.bind(performanceId, pid, i)
 						.run();
 				}
 			}

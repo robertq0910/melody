@@ -10,7 +10,7 @@ export interface LatLng {
 }
 
 // Nominatim asks callers to identify themselves with a descriptive User-Agent.
-const USER_AGENT = "MelodyForMedicine/1.0 (community performance map; +https://github.com/)";
+const USER_AGENT = "HarmonicBridges/1.0 (community performance map; +https://github.com/)";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 
 function normalize(query: string): string {
