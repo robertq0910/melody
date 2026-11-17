@@ -1,6 +1,6 @@
 // Site-wide constants. Imported anywhere with the `import` keyword.
 
-export const SITE_TITLE = "Harmonic Bridges";
+export const SITE_TITLE = "King County Music Collective";
 export const SITE_DESCRIPTION =
 	"A group of teen musicians bringing live performances to senior living communities and local events.";
 

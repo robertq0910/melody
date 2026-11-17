@@ -81,6 +81,9 @@ body::after {
 }
 body::before {
 	background: url("/images/bg-sheet-music.jpg") center / cover no-repeat;
+	/* Soft blur; inset pushed past the viewport so blurred edges don't fade in. */
+	inset: -12px;
+	filter: blur(1.5px);
 }
 body::after {
 	background:

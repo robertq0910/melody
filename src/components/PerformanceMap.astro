@@ -169,10 +169,13 @@ const { title = "Where we play" } = Astro.props;
 				hideSection();
 				return;
 			}
+			// County-level view: never zoom in closer than 9 (roughly all of
+			// King County), even when the pins are clustered close together.
+			var COUNTY_ZOOM = 9;
 			if (latlngs.length === 1) {
-				map.setView(latlngs[0], 12);
+				map.setView(latlngs[0], COUNTY_ZOOM);
 			} else {
-				map.fitBounds(latlngs, { padding: [40, 40] });
+				map.fitBounds(latlngs, { padding: [40, 40], maxZoom: COUNTY_ZOOM });
 			}
 		}
 

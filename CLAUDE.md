@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A website for **Harmonic Bridges** — a teen-run group that performs at senior living communities and local events. It's an **Astro 5 app running as a Cloudflare Worker** (`@astrojs/cloudflare` adapter), built to run entirely on the **Cloudflare free plan**. The public site showcases performers and past performances and accepts two kinds of inbound submissions (hosting requests, volunteer applications). A custom `/admin` area manages all content. Node >= 22.
+A website for **King County Music Collective** — a teen-run group that performs at senior living communities and local events. It's an **Astro 5 app running as a Cloudflare Worker** (`@astrojs/cloudflare` adapter), built to run entirely on the **Cloudflare free plan**. The public site showcases performers and past performances and accepts two kinds of inbound submissions (hosting requests, volunteer applications). A custom `/admin` area manages all content. Node >= 22.
 
 ## Cloudflare services used (all free tier)
 
